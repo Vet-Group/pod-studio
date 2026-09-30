@@ -44,6 +44,8 @@ async function viewport(w, h) { await send('Emulation.setDeviceMetricsOverride',
 async function shot(name) { if (!takeShots) return; mkdirSync(shotsDir, { recursive: true }); const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); writeFileSync(join(shotsDir, name + '.png'), Buffer.from(r.data, 'base64')); }
 const click = sel => ev(`(()=>{const e=document.querySelector(${JSON.stringify(sel)});if(!e)throw new Error('missing '+${JSON.stringify(sel)});e.click();return true})()`);
 const text = () => ev('document.body.innerText');
+// Chênh chiều cao giữa 2 cột thẻ ở màn 7 (0 khi chỉ có 1 cột).
+const nicheColGap = () => ev(`(()=>{const s=document.querySelector('.nsec').getBoundingClientRect();const c=[...document.querySelectorAll('.nsec [data-section]')].map(e=>e.getBoundingClientRect());const xs=[...new Set(c.map(b=>Math.round(b.left)))];if(xs.length<2)return 0;const bot=xs.map(x=>Math.max(...c.filter(b=>Math.round(b.left)===x).map(b=>b.bottom)));return Math.round(Math.max(...bot)-Math.min(...bot));})()`);
 
 try {
   ws = new WebSocket(await connect());
@@ -206,6 +208,8 @@ try {
   await nset('[data-score="ip"]', '5'); await sleep(40);
   await click('[data-nnext]'); await sleep(40);
   check('Style variant đúng 4, nút thêm bị khóa', (await nq('[data-count="style_variants"]')) === '4 / đúng 4' && (await disabled('[data-nadd="style_variants"]')) === true);
+  const gap1440 = await nicheColGap();
+  check('Bước 5 ở 1440px không để khoảng trống dưới Luật QA', gap1440 <= 1, 'chênh ' + gap1440 + 'px');
   const qa = await nq('[data-section="qa_rules"]');
   check('Luật QA là object, có nền #00FF00 và tỉ lệ 3:4', qa.includes('#00FF00') && qa.includes('3:4'));
   await nset('#nicheMaxColors', '13'); await sleep(40);
@@ -237,6 +241,8 @@ try {
       await click(`[data-nav="${s}"]`); await sleep(80);
       const overflow = await ev(`document.documentElement.scrollWidth - ${w}`);
       check(`Không tràn ngang ${s} ${w}px`, overflow <= 1, 'dư ' + overflow + 'px');
+      if (s === 'niche' && w === 1024) { await click('[data-nstep="4"]'); await sleep(40); const g = await nicheColGap(); check('Bước 5 ở 1024px hai cột cân nhau', g <= 1, 'chênh ' + g + 'px'); }
+      if (s === 'niche' && w === 390) { await click('[data-nstep="4"]'); await sleep(40); const order = await ev('[...document.querySelectorAll(".nsec [data-section]")].map(e=>e.dataset.section).join(",")'); check('Bước 5 ở 390px giữ thứ tự Style, IP, QA và 1 cột', order === 'style_variants,ip_safety,qa_rules' && (await nicheColGap()) === 0, order); }
       await shot(`${s}-${w}`);
     }
   }
