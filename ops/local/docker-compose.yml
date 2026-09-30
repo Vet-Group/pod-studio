@@ -1,0 +1,44 @@
+# Local services for POD Studio development and tests.
+# Ports are deliberately off the defaults: this machine already runs a Postgres on 5432.
+# Credentials below are local-only placeholders, never used outside this compose project.
+name: pod-studio
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pod
+      POSTGRES_PASSWORD: pod-local-only
+      POSTGRES_DB: pod_dev
+    ports:
+      - "127.0.0.1:54316:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pod -d pod_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    # The official minio/minio image is no longer publicly pullable; this is the
+    # Chainguard rebuild of the same server, pinned by digest.
+    image: chainguard/minio@sha256:4692462f35d97d7e82c30371d82f057703c5d9489bcae726010594c812f2d285
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: podlocal
+      MINIO_ROOT_PASSWORD: pod-local-only
+    ports:
+      - "127.0.0.1:19000:9000"
+      - "127.0.0.1:19001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pg-data:
+  minio-data:

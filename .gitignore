@@ -22,3 +22,8 @@ Thumbs.db
 
 # Vendored generator scratch output
 tools/pod-skill-builder/.work/
+
+# Test and framework output
+playwright-report/
+test-results/
+next-env.d.ts

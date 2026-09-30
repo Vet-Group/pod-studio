@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+  # packages/contracts keeps its own npm lockfile and `npm run check`; it joins the
+  # workspace once P1-07 wires generated types into apps/web.
+  - '!packages/contracts'

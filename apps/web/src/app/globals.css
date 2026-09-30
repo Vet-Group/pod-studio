@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens carried over from design/wireframes/index.html (direction 01, light).
+ * Contrast values were verified WCAG AA in the wireframe suite; keep them in sync.
+ */
+@theme {
+  /* The root font size is 14px, so rem-based spacing would shrink every gap by 12.5%. */
+  --spacing: 4px;
+
+  /* Same breakpoints as the wireframe media queries (420 / 760 / 1150 / 1600). */
+  --breakpoint-*: initial;
+  --breakpoint-sm: 421px;
+  --breakpoint-md: 761px;
+  --breakpoint-lg: 1151px;
+  --breakpoint-xl: 1600px;
+
+  --color-bg: #f7f6f2;
+  --color-paper: #fffefa;
+  --color-ink: #242c2a;
+  --color-muted: #5b645e;
+  --color-line: #dedfd6;
+  --color-teal: #24685b;
+  --color-soft: #e9f0e9;
+  --color-orange: #a85a36;
+  --color-focus: #bc704b;
+  --color-sidebar: #edefe7;
+  --color-selected: #dce7dc;
+  --radius-card: 12px;
+  --font-sans: Arial, 'Segoe UI', sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html {
+    font-size: 14px;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 4px;
+  }
+  /* The skip link moves focus to <main>; the region itself needs no ring. */
+  #main:focus,
+  #main:focus-visible {
+    outline: none;
+  }
+  small {
+    font-size: max(11.5px, 0.83em);
+  }
+}
+
+/* Mirrors the wireframe's 390px floor: every control stays at least 44px tall on phones. */
+@media (max-width: 420px) {
+  button,
+  select,
+  input:not([type='checkbox']):not([type='radio']),
+  a[data-tap] {
+    min-height: 44px;
+  }
+}
