@@ -1,0 +1,27 @@
+{
+  "name": "@pod-studio/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "migrate": "node --env-file-if-exists=../../apps/web/.env.local --import tsx src/cli/migrate.ts",
+    "check": "drizzle-kit check"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.3",
+    "nanoid": "6.0.1",
+    "postgres": "3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}

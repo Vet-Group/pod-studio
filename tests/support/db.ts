@@ -32,6 +32,8 @@ export function serverSettings(env: NodeJS.ProcessEnv = process.env): ServerSett
 
 export interface TestDatabase extends DatabaseTarget {
   sql: postgres.Sql;
+  /** Options to open another client (for example the migrator) on the same database. */
+  connection: { host: string; port: number; user: string; password: string; database: string };
   /** Closes the connection and drops the database. Safe to call more than once. */
   drop(): Promise<void>;
 }
@@ -69,20 +71,14 @@ export async function createTestDatabase(settings: ServerSettings = serverSettin
   }
   created.add(database);
 
-  const sql = postgres({
-    host: settings.host,
-    port: settings.port,
-    user: settings.user,
-    password: settings.password,
-    database,
-    max: 4,
-    onnotice: () => {},
-  });
+  const connection = { host: settings.host, port: settings.port, user: settings.user, password: settings.password, database };
+  const sql = postgres({ ...connection, max: 4, onnotice: () => {} });
 
   let dropped = false;
   return {
     ...target,
     sql,
+    connection,
     async drop() {
       if (dropped) return;
       dropped = true;

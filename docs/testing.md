@@ -11,7 +11,14 @@ pnpm services:up      # Postgres 16 (cổng 54316) + MinIO (cổng 19000, consol
 pnpm dev              # webapp: http://localhost:3100
 ```
 
-`pnpm dev` hiện chưa đọc database: webapp mới có khung điều hướng 7 màn, bố cục responsive và màu lấy từ `design/wireframes/index.html`. Mỗi màn là trang giữ chỗ, ghi rõ task nào sẽ dựng nó. Database và đăng nhập đến ở P1-02 và P1-03; khi đó mới cần chép `apps/web/.env.example` thành `apps/web/.env.local`.
+`pnpm dev` hiện chưa đọc database: webapp mới có khung điều hướng 7 màn, bố cục responsive và màu lấy từ `design/wireframes/index.html`. Mỗi màn là trang giữ chỗ, ghi rõ task nào sẽ dựng nó. Đăng nhập đến ở P1-03.
+
+Schema và migration có từ P1-02 (`packages/db`, xem [database.md](database.md)). Để có database dev:
+
+```bash
+cp apps/web/.env.example apps/web/.env.local   # một lần; chỉ chứa giá trị local
+pnpm db:migrate                                # áp migration vào pod_dev
+```
 
 Kiểm tra nhanh: `curl http://localhost:3100/api/health` trả `{"ok":true,...}`.
 
@@ -19,9 +26,11 @@ Kiểm tra nhanh: `curl http://localhost:3100/api/health` trả `{"ok":true,...}
 
 | Lệnh | Việc làm |
 | --- | --- |
-| `pnpm typecheck` | Sinh type route của Next rồi chạy `tsc` cho app và thư mục `tests/` |
+| `pnpm typecheck` | Sinh type route của Next rồi chạy `tsc` cho app, `packages/db` và thư mục `tests/` |
 | `pnpm lint` | ESLint cho toàn repo (bỏ qua `design/`, `packages/contracts/`, `tasks/` vì có bộ kiểm riêng) |
-| `pnpm test` | Vitest: guard, test cô lập Postgres/MinIO thật, test của `apps/web` |
+| `pnpm test` | Vitest: guard, test cô lập Postgres/MinIO thật, test của `apps/web` và `packages/db` (migration, quy ước schema) |
+| `pnpm db:migrate` | Áp migration còn thiếu vào database trong `DATABASE_URL` hoặc `PG*` (đọc `apps/web/.env.local` nếu có) |
+| `pnpm db:generate` / `pnpm db:check` | Sinh migration từ schema / kiểm snapshot migration. Quy trình ở [database.md](database.md) |
 | `pnpm test:e2e` | Playwright ở 1440px và 390px: điều hướng, 404, không tràn ngang, axe WCAG 2.2 AA, vùng bấm 44px trên điện thoại |
 | `pnpm check` | `typecheck` + `lint` + `test` |
 

@@ -18,6 +18,9 @@
     "services:up": "docker compose -f ops/local/docker-compose.yml up -d --wait",
     "services:down": "docker compose -f ops/local/docker-compose.yml down",
     "services:reset": "docker compose -f ops/local/docker-compose.yml down -v",
+    "db:generate": "pnpm --filter @pod-studio/db generate",
+    "db:migrate": "pnpm --filter @pod-studio/db migrate",
+    "db:check": "pnpm --filter @pod-studio/db check",
     "check": "pnpm typecheck && pnpm lint && pnpm test"
   },
   "devDependencies": {
