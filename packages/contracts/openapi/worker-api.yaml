@@ -1,0 +1,810 @@
+openapi: 3.1.0
+info:
+  title: POD Studio Worker API
+  version: 2.0.0-draft.1
+  summary: Contract between the POD Studio webapp and AI workers.
+  description: |
+    Draft for review by the workers/skills owner. Nothing here is implemented yet.
+
+    Principles:
+    - Workers never touch the webapp database or filesystem. Files move only through presigned URLs.
+    - The server decides which job runs next. A worker claims on behalf of one provider account.
+    - Provider credentials (ChatGPT, Grok, Gemini, ...) stay on the worker machine. The webapp only
+      knows account metadata and health.
+    - Every job-scoped call carries the `leaseToken` from claim. A stale token gets `409 lease_lost`
+      and the worker must discard its work for that job.
+    - Prompts arrive already rendered from a published skill version. Workers do not need a template engine.
+
+    Authentication: `Authorization: Bearer <worker token>`. One token per worker, created and revoked
+    by an admin in the webapp, stored hashed. Send `X-Contract-Version: 2` on every request.
+
+    Why v2: v1 is the single-host worker API described in the reference PRD (section 8.5: shared token,
+    shared filesystem, fixed 30-minute cut-off). v2 replaces it; there is no running v1 system to stay
+    compatible with.
+  contact:
+    name: POD Studio webapp owner
+servers:
+  - url: https://pod-studio.example.internal/api/worker/v2
+    description: Placeholder host; real host to be decided.
+security:
+  - workerToken: []
+tags:
+  - name: Worker
+    description: Worker process registration and liveness.
+  - name: Jobs
+    description: Claim, heartbeat, upload, complete and fail a leased job.
+  - name: Accounts
+    description: Provider account health reported by the worker that drives it.
+  - name: Skills
+    description: Read-only access to published skill versions.
+paths:
+  /register:
+    post:
+      tags: [Worker]
+      operationId: registerWorker
+      summary: Announce a worker process and the provider accounts it drives.
+      description: |
+        Call on start and after any change to the account list. Idempotent per `workerKey`.
+        Accounts not listed are marked offline for this worker. The response returns stable
+        `accountId`s to use in claim and status calls, plus the timing the worker must follow.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '426':
+          $ref: '#/components/responses/ContractUnsupported'
+  /claim:
+    post:
+      tags: [Jobs]
+      operationId: claimJob
+      summary: Take the next job this account can run.
+      description: |
+        Server picks by priority tier, then round-robin across stores and requesters, then age.
+        Only jobs whose required provider skills are installed on the account are offered.
+        Supports long polling with `waitSeconds`; returns 204 when nothing is available.
+        Also counts as a liveness signal for the worker and the account.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+      responses:
+        '200':
+          description: A job was leased to this account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimResponse'
+        '204':
+          description: No job available within `waitSeconds`.
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Account is not claimable (cooldown, session expired, disabled, busy, or owned by another worker).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../schemas/common.schema.json#/$defs/Problem'
+  /jobs/{jobId}/heartbeat:
+    post:
+      tags: [Jobs]
+      operationId: heartbeatJob
+      summary: Extend the lease and report progress.
+      description: |
+        Send every `heartbeatIntervalSeconds` while working. If `cancelRequested` is true, stop,
+        clean up and call `fail` with `errorClass: cancelled`.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '200':
+          description: Lease extended.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LeaseLost'
+  /jobs/{jobId}/uploads:
+    post:
+      tags: [Jobs]
+      operationId: createUploads
+      summary: Get presigned PUT URLs for output files.
+      description: |
+        Declare every output file before uploading. The server returns one `uploadKey` and URL per file.
+        Upload with HTTP PUT using exactly the returned headers. Keys are bound to this lease.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadsRequest'
+      responses:
+        '200':
+          description: Upload targets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LeaseLost'
+  /jobs/{jobId}/complete:
+    post:
+      tags: [Jobs]
+      operationId: completeJob
+      summary: Report success with uploaded images or a JSON payload.
+      description: |
+        Idempotent: repeating the same request with the same `Idempotency-Key` returns the first result.
+        Reusing a key with a different body returns `422 idempotency_key_reused`.
+        The server verifies that every `uploadKey` exists with the declared sha256 before accepting.
+        Cancel wins over complete: once a cancel is recorded, complete returns `409 job_not_active`.
+        Image jobs (`mockup`, `redesign`) send `images`. Text jobs (`listing_content`, `product_analysis`)
+        send `payload` matching the schema for the job type.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/JobId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteRequest'
+      responses:
+        '200':
+          description: Job succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LeaseLost'
+        '422':
+          description: An upload is missing, a checksum does not match, or the Idempotency-Key was reused with a different body.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../schemas/common.schema.json#/$defs/Problem'
+  /jobs/{jobId}/fail:
+    post:
+      tags: [Jobs]
+      operationId: failJob
+      summary: Report failure with a classified error.
+      description: |
+        The error class decides what happens next. See the README table. Idempotent per `Idempotency-Key`;
+        reusing a key with a different body returns `422 idempotency_key_reused`.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/JobId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailRequest'
+      responses:
+        '200':
+          description: Failure recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LeaseLost'
+        '422':
+          description: The Idempotency-Key was reused with a different body.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../schemas/common.schema.json#/$defs/Problem'
+  /accounts/{accountId}/status:
+    post:
+      tags: [Accounts]
+      operationId: reportAccountStatus
+      summary: Report provider account health outside of a job.
+      description: |
+        Use when an account hits a rate limit while idle, loses its login, or after a human re-logs in.
+        Also reports which provider skills are installed, so the scheduler can route jobs that need them.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatusRequest'
+      responses:
+        '200':
+          description: Status stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStatusResponse'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /skills/{versionId}:
+    get:
+      tags: [Skills]
+      operationId: getSkillVersion
+      summary: Fetch a published skill version manifest and artifact URL.
+      description: Only published or deprecated versions are served. Versions are immutable, so workers may cache by `versionId`.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Id'
+      responses:
+        '200':
+          description: Skill version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillVersionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    workerToken:
+      type: http
+      scheme: bearer
+      description: Per-worker opaque token issued by an admin. Shown once, stored hashed.
+  parameters:
+    ContractVersion:
+      name: X-Contract-Version
+      in: header
+      required: true
+      schema:
+        type: string
+        const: '2'
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        $ref: '../schemas/common.schema.json#/$defs/Id'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique per logical attempt, for example `<jobId>:<attempt>:complete`.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+  responses:
+    Unauthorized:
+      description: Missing, unknown or revoked worker token.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Problem'
+    NotFound:
+      description: Unknown id, or not visible to this worker.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Problem'
+    ValidationFailed:
+      description: Body or parameters failed validation. `errors[]` lists paths.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Problem'
+    LeaseLost:
+      description: The lease expired or the job was reassigned or cancelled. Discard local work for this job.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Problem'
+    ContractUnsupported:
+      description: The server no longer accepts this contract version.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../schemas/common.schema.json#/$defs/Problem'
+  schemas:
+    AccountDeclaration:
+      type: object
+      additionalProperties: false
+      required: [accountKey, provider, channel, jobTypes]
+      properties:
+        accountKey:
+          type: string
+          description: Stable worker-local label, for example `chatgpt-acc1`. Never an email or secret.
+          pattern: '^[a-z0-9][a-z0-9_-]{1,63}$'
+        provider:
+          $ref: '../schemas/common.schema.json#/$defs/Provider'
+        channel:
+          $ref: '../schemas/common.schema.json#/$defs/Channel'
+        jobTypes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '../schemas/common.schema.json#/$defs/JobType'
+        maxConcurrency:
+          type: integer
+          minimum: 1
+          maximum: 16
+          default: 1
+          description: Browser subscription accounts should stay at 1.
+        installedSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstalledSkill'
+    InstalledSkill:
+      type: object
+      additionalProperties: false
+      required: [slug]
+      properties:
+        slug:
+          $ref: '../schemas/common.schema.json#/$defs/Slug'
+        version:
+          $ref: '../schemas/common.schema.json#/$defs/SemVer'
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [workerKey, host, version, accounts]
+      properties:
+        workerKey:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9_.@-]{1,99}$'
+          description: Stable process identity, for example `browser-01@studio-host`.
+        host:
+          type: string
+          maxLength: 255
+        version:
+          type: string
+          maxLength: 64
+          description: Worker build version, shown in the admin UI.
+        accounts:
+          type: array
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/AccountDeclaration'
+    RegisteredAccount:
+      type: object
+      additionalProperties: false
+      required: [accountKey, accountId, state]
+      properties:
+        accountKey:
+          type: string
+        accountId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        state:
+          $ref: '#/components/schemas/AccountState'
+    RegisterResponse:
+      type: object
+      additionalProperties: false
+      required: [workerId, accounts, heartbeatIntervalSeconds, leaseSeconds, maxClaimWaitSeconds, storageOrigins]
+      properties:
+        storageOrigins:
+          type: array
+          minItems: 1
+          description: Origins used by presigned input and upload URLs. Workers must refuse any URL outside this list (SSRF guard).
+          items:
+            type: string
+            format: uri
+        workerId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisteredAccount'
+        heartbeatIntervalSeconds:
+          type: integer
+          minimum: 5
+          examples: [45]
+        leaseSeconds:
+          type: integer
+          minimum: 30
+          examples: [180]
+        maxClaimWaitSeconds:
+          type: integer
+          minimum: 0
+          examples: [25]
+    AccountState:
+      type: string
+      enum: [available, busy, cooldown, session_expired, disabled, offline]
+    ClaimRequest:
+      type: object
+      additionalProperties: false
+      required: [workerId, accountId]
+      properties:
+        workerId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        accountId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        jobTypes:
+          type: array
+          uniqueItems: true
+          description: Optional narrowing of the account's declared job types.
+          items:
+            $ref: '../schemas/common.schema.json#/$defs/JobType'
+        waitSeconds:
+          type: integer
+          minimum: 0
+          maximum: 25
+          default: 0
+    JobBase:
+      type: object
+      required: [id, type, provider, attempt, maxAttempts, leaseToken, leaseExpiresAt, prompt, inputs]
+      properties:
+        id:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        type:
+          $ref: '../schemas/common.schema.json#/$defs/JobType'
+        provider:
+          $ref: '../schemas/common.schema.json#/$defs/Provider'
+        attempt:
+          type: integer
+          minimum: 1
+        maxAttempts:
+          type: integer
+          minimum: 1
+        leaseToken:
+          type: string
+          minLength: 16
+          maxLength: 128
+        leaseExpiresAt:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'
+        prompt:
+          type: string
+          description: Final user prompt, rendered from the skill version. May contain provider mentions such as @create-wall-art-mockups that must be typed with real keystrokes.
+          maxLength: 40000
+        systemPrompt:
+          type: string
+          maxLength: 40000
+        inputs:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '../schemas/common.schema.json#/$defs/AssetRef'
+        skill:
+          $ref: '../schemas/common.schema.json#/$defs/SkillRef'
+        requiredProviderSkills:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '../schemas/common.schema.json#/$defs/Slug'
+        timeoutSeconds:
+          type: integer
+          minimum: 60
+          description: Hard ceiling for the whole job. The lease still needs heartbeats.
+    MockupJob:
+      allOf:
+        - $ref: '#/components/schemas/JobBase'
+        - type: object
+          required: [type, params]
+          properties:
+            type:
+              const: mockup
+            params:
+              $ref: '../schemas/job.schema.json#/$defs/MockupParams'
+    RedesignJob:
+      allOf:
+        - $ref: '#/components/schemas/JobBase'
+        - type: object
+          required: [type, params]
+          properties:
+            type:
+              const: redesign
+            params:
+              $ref: '../schemas/job.schema.json#/$defs/RedesignParams'
+    ListingContentJob:
+      allOf:
+        - $ref: '#/components/schemas/JobBase'
+        - type: object
+          required: [type, params]
+          properties:
+            type:
+              const: listing_content
+            params:
+              $ref: '../schemas/job.schema.json#/$defs/ListingContentParams'
+    ProductAnalysisJob:
+      allOf:
+        - $ref: '#/components/schemas/JobBase'
+        - type: object
+          required: [type, params]
+          properties:
+            type:
+              const: product_analysis
+            params:
+              $ref: '../schemas/job.schema.json#/$defs/ProductAnalysisParams'
+    ClaimedJob:
+      oneOf:
+        - $ref: '#/components/schemas/MockupJob'
+        - $ref: '#/components/schemas/RedesignJob'
+        - $ref: '#/components/schemas/ListingContentJob'
+        - $ref: '#/components/schemas/ProductAnalysisJob'
+      discriminator:
+        propertyName: type
+        mapping:
+          mockup: '#/components/schemas/MockupJob'
+          redesign: '#/components/schemas/RedesignJob'
+          listing_content: '#/components/schemas/ListingContentJob'
+          product_analysis: '#/components/schemas/ProductAnalysisJob'
+    ClaimResponse:
+      type: object
+      additionalProperties: false
+      required: [job]
+      properties:
+        job:
+          $ref: '#/components/schemas/ClaimedJob'
+    Progress:
+      type: object
+      additionalProperties: false
+      properties:
+        percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        stage:
+          type: string
+          maxLength: 64
+          examples: [uploading_input, prompting, waiting_provider, downloading, rate_limit_wait]
+        message:
+          type: string
+          maxLength: 500
+    HeartbeatRequest:
+      type: object
+      additionalProperties: false
+      required: [leaseToken]
+      properties:
+        leaseToken:
+          type: string
+        progress:
+          $ref: '#/components/schemas/Progress'
+    HeartbeatResponse:
+      type: object
+      additionalProperties: false
+      required: [leaseExpiresAt, cancelRequested]
+      properties:
+        leaseExpiresAt:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'
+        cancelRequested:
+          type: boolean
+    UploadDeclaration:
+      type: object
+      additionalProperties: false
+      required: [contentType, bytes, sha256]
+      properties:
+        contentType:
+          $ref: '../schemas/common.schema.json#/$defs/ImageContentType'
+        bytes:
+          type: integer
+          minimum: 1
+          maximum: 52428800
+        sha256:
+          $ref: '../schemas/common.schema.json#/$defs/Sha256'
+    UploadsRequest:
+      type: object
+      additionalProperties: false
+      required: [leaseToken, files]
+      properties:
+        leaseToken:
+          type: string
+        files:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/UploadDeclaration'
+    UploadTarget:
+      type: object
+      additionalProperties: false
+      required: [uploadKey, url, method, headers, expiresAt]
+      properties:
+        uploadKey:
+          type: string
+        url:
+          type: string
+          format: uri
+        method:
+          const: PUT
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'
+    UploadsResponse:
+      type: object
+      additionalProperties: false
+      required: [uploads]
+      properties:
+        uploads:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadTarget'
+    ProviderMeta:
+      type: object
+      additionalProperties: true
+      description: Diagnostics only. Never include cookies, tokens or account emails.
+      properties:
+        model:
+          type: string
+          maxLength: 120
+        durationMs:
+          type: integer
+          minimum: 0
+        conversationRef:
+          type: string
+          maxLength: 500
+    CompleteRequest:
+      type: object
+      additionalProperties: false
+      required: [leaseToken]
+      properties:
+        leaseToken:
+          type: string
+        images:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '../schemas/job.schema.json#/$defs/OutputImage'
+        payload:
+          type: object
+          description: For listing_content use ListingContentPayload; for product_analysis use ProductAnalysisPayload. The server validates by job type.
+        providerMeta:
+          $ref: '#/components/schemas/ProviderMeta'
+      oneOf:
+        - required: [images]
+        - required: [payload]
+    CompleteResponse:
+      type: object
+      additionalProperties: false
+      required: [status, resultIds]
+      properties:
+        status:
+          const: succeeded
+        resultIds:
+          type: array
+          items:
+            $ref: '../schemas/common.schema.json#/$defs/Id'
+    FailRequest:
+      type: object
+      additionalProperties: false
+      required: [leaseToken, errorClass, message]
+      properties:
+        leaseToken:
+          type: string
+        errorClass:
+          $ref: '../schemas/common.schema.json#/$defs/ErrorClass'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Human-readable; shown to the requester for provider_refused and input_invalid. No secrets.
+        retryAfterSeconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
+          description: Required for account_rate_limited when the provider tells you; otherwise the server uses a default cooldown.
+        providerMeta:
+          $ref: '#/components/schemas/ProviderMeta'
+    FailResponse:
+      type: object
+      additionalProperties: false
+      required: [jobStatus, willRetry]
+      properties:
+        jobStatus:
+          type: string
+          enum: [queued, failed, cancelled]
+        willRetry:
+          type: boolean
+        nextAttemptAt:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'
+        accountState:
+          $ref: '#/components/schemas/AccountState'
+    AccountStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [available, cooldown, session_expired, disabled]
+        cooldownUntil:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'
+        installedSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstalledSkill'
+        note:
+          type: string
+          maxLength: 500
+    AccountStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [accountId, state]
+      properties:
+        accountId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        state:
+          $ref: '#/components/schemas/AccountState'
+    SkillVersionResponse:
+      type: object
+      additionalProperties: false
+      required: [versionId, status, manifest, checksum]
+      properties:
+        versionId:
+          $ref: '../schemas/common.schema.json#/$defs/Id'
+        status:
+          type: string
+          enum: [published, deprecated]
+        checksum:
+          $ref: '../schemas/common.schema.json#/$defs/Sha256'
+        manifest:
+          $ref: '../schemas/skill-manifest.schema.json'
+        artifactUrl:
+          type: string
+          format: uri
+        artifactUrlExpiresAt:
+          $ref: '../schemas/common.schema.json#/$defs/Timestamp'

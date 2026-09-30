@@ -1,0 +1,53 @@
+{
+  "versionId": "skv_Poster0103",
+  "status": "published",
+  "checksum": "bbf038eef43ebde84b66293424c946ea3aa7ae14eec52147f3c389f2c217ccf9",
+  "manifest": {
+    "manifestVersion": "1",
+    "kind": "prompt_template",
+    "slug": "poster-wall-art-mockups",
+    "name": "Poster wall art mockups",
+    "version": "1.3.0",
+    "description": "Lifestyle, detail and packaging mockups for poster and canvas designs.",
+    "owner": {
+      "team": "Workers & Skills"
+    },
+    "changelog": "Add packaging shot requirement.",
+    "appliesTo": {
+      "jobTypes": [
+        "mockup"
+      ],
+      "productTypes": [
+        "poster",
+        "canvas"
+      ],
+      "niches": [],
+      "providers": [
+        "chatgpt"
+      ]
+    },
+    "promptTemplate": {
+      "template": "Use @create-wall-art-mockups skill to create {{count}} mockups with ratio {{ratio}}. Make sure to include a Detail shot mockup and a Packaging mockup.",
+      "variables": [
+        {
+          "name": "count",
+          "type": "integer",
+          "default": 10
+        },
+        {
+          "name": "ratio",
+          "type": "ratio",
+          "default": "3:4"
+        }
+      ],
+      "requiresProviderSkills": [
+        "create-wall-art-mockups"
+      ],
+      "output": {
+        "expectedCount": 10,
+        "ratio": "3:4",
+        "format": "images"
+      }
+    }
+  }
+}

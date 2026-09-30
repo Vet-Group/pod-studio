@@ -1,0 +1,21 @@
+{
+  "target": "RegisterResponse",
+  "doc": {
+    "workerId": "wkr_7Hq2LmX9pA",
+    "accounts": [
+      {
+        "accountKey": "chatgpt-acc1",
+        "accountId": "acc_Zp4Nw8RtYc",
+        "state": "available"
+      },
+      {
+        "accountKey": "grok-acc1",
+        "accountId": "acc_Kd3Vb6QsJe",
+        "state": "cooldown"
+      }
+    ],
+    "heartbeatIntervalSeconds": 45,
+    "leaseSeconds": 180,
+    "maxClaimWaitSeconds": 25
+  }
+}

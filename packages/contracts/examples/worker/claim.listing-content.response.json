@@ -1,0 +1,46 @@
+{
+  "job": {
+    "id": "job_B7nC4xW9eL",
+    "type": "listing_content",
+    "provider": "chatgpt",
+    "attempt": 1,
+    "maxAttempts": 3,
+    "leaseToken": "lse_9a8b7c6d5e4f3a2b1c0d",
+    "leaseExpiresAt": "2026-09-30T04:18:00Z",
+    "prompt": "Write a Shopify listing in de for a botanical wall art poster. Return JSON only.",
+    "systemPrompt": "You are a POD listing copywriter.",
+    "inputs": [
+      {
+        "role": "design",
+        "assetId": "ast_Dsg9Hk2Lp0",
+        "url": "https://storage.example.internal/designs/ast_Dsg9Hk2Lp0.png?X-Amz-Signature=REDACTED",
+        "urlExpiresAt": "2026-09-30T04:30:00Z",
+        "sha256": "ebfda0c1c1a17fda851313de7fb1315ecf8922c8a28b2a19097fc6e7e9e09032",
+        "contentType": "image/png",
+        "bytes": 8421337,
+        "width": 4500,
+        "height": 6000,
+        "filename": "autumn-leaves-botanical.png"
+      }
+    ],
+    "skill": {
+      "skillId": "skl_Content001",
+      "versionId": "skv_Content020",
+      "slug": "listing-content-wall-art",
+      "kind": "prompt_template",
+      "version": "2.0.0",
+      "checksum": "0c1103904377c9acc575512d622500c664d5c79ab75a7750ce8186e35ea956d8"
+    },
+    "timeoutSeconds": 900,
+    "params": {
+      "locale": "de",
+      "niche": "wall art",
+      "productType": "poster",
+      "context": "Warm autumn palette, living room focus.",
+      "takenKeywords": [
+        "Botanical Line Wall Art",
+        "Autumn Leaves Poster"
+      ]
+    }
+  }
+}

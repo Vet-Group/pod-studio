@@ -1,0 +1,21 @@
+{
+  "target": "ClaimResponse",
+  "doc": {
+    "job": {
+      "id": "job_V1tR8sK2mQ",
+      "type": "mockup",
+      "provider": "chatgpt",
+      "attempt": 1,
+      "maxAttempts": 3,
+      "leaseExpiresAt": "2026-09-30T04:18:00Z",
+      "prompt": "p",
+      "inputs": [],
+      "params": {
+        "productType": "poster",
+        "count": 10,
+        "ratio": "3:4",
+        "mode": "generate"
+      }
+    }
+  }
+}

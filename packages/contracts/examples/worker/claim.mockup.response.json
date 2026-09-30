@@ -1,0 +1,45 @@
+{
+  "job": {
+    "id": "job_V1tR8sK2mQ",
+    "type": "mockup",
+    "provider": "chatgpt",
+    "attempt": 1,
+    "maxAttempts": 3,
+    "leaseToken": "lse_4f9c2a7e1b6d8f03a5c7e9b1",
+    "leaseExpiresAt": "2026-09-30T04:18:00Z",
+    "prompt": "Use @create-wall-art-mockups skill to create 10 mockups with ratio 3:4. Make sure to include a Detail shot mockup and a Packaging mockup.",
+    "inputs": [
+      {
+        "role": "design",
+        "assetId": "ast_Dsg9Hk2Lp0",
+        "url": "https://storage.example.internal/designs/ast_Dsg9Hk2Lp0.png?X-Amz-Signature=REDACTED",
+        "urlExpiresAt": "2026-09-30T04:30:00Z",
+        "sha256": "ebfda0c1c1a17fda851313de7fb1315ecf8922c8a28b2a19097fc6e7e9e09032",
+        "contentType": "image/png",
+        "bytes": 8421337,
+        "width": 4500,
+        "height": 6000,
+        "filename": "autumn-leaves-botanical.png"
+      }
+    ],
+    "skill": {
+      "skillId": "skl_Poster0001",
+      "versionId": "skv_Poster0103",
+      "slug": "poster-wall-art-mockups",
+      "kind": "prompt_template",
+      "version": "1.3.0",
+      "checksum": "bbf038eef43ebde84b66293424c946ea3aa7ae14eec52147f3c389f2c217ccf9"
+    },
+    "requiredProviderSkills": [
+      "create-wall-art-mockups"
+    ],
+    "timeoutSeconds": 2400,
+    "params": {
+      "productType": "poster",
+      "count": 10,
+      "ratio": "3:4",
+      "mode": "generate",
+      "niche": "botanical"
+    }
+  }
+}

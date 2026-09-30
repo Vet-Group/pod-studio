@@ -1,0 +1,6 @@
+{
+  "jobStatus": "queued",
+  "willRetry": true,
+  "nextAttemptAt": "2026-09-30T04:16:00Z",
+  "accountState": "cooldown"
+}

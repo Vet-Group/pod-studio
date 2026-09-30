@@ -1,0 +1,6 @@
+{
+  "leaseToken": "lse_4f9c2a7e1b6d8f03a5c7e9b1",
+  "errorClass": "account_rate_limited",
+  "message": "Provider asked to wait before creating more images.",
+  "retryAfterSeconds": 3600
+}

@@ -1,0 +1,53 @@
+{
+  "manifestVersion": "1",
+  "kind": "prompt_template",
+  "slug": "listing-content-wall-art",
+  "name": "Listing content: wall art",
+  "version": "2.0.0",
+  "appliesTo": {
+    "jobTypes": [
+      "listing_content"
+    ],
+    "productTypes": [
+      "poster",
+      "canvas"
+    ],
+    "niches": [
+      "wall art"
+    ]
+  },
+  "promptTemplate": {
+    "systemPrompt": "You are a POD listing copywriter. Return JSON only.",
+    "template": "Write a Shopify listing in {{locale}} for a {{niche}} {{productType}}. Avoid these primary keywords: {{takenKeywords}}. Context: {{context}}",
+    "variables": [
+      {
+        "name": "locale",
+        "type": "locale"
+      },
+      {
+        "name": "niche",
+        "type": "string"
+      },
+      {
+        "name": "productType",
+        "type": "string"
+      },
+      {
+        "name": "takenKeywords",
+        "type": "string",
+        "required": false,
+        "default": ""
+      },
+      {
+        "name": "context",
+        "type": "string",
+        "required": false,
+        "default": ""
+      }
+    ],
+    "output": {
+      "format": "json",
+      "jsonSchemaRef": "job.schema.json#/$defs/ListingContentPayload"
+    }
+  }
+}

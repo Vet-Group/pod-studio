@@ -1,0 +1,25 @@
+{
+  "name": "@pod-studio/contracts",
+  "version": "2.0.0-draft.1",
+  "private": true,
+  "description": "Worker API (OpenAPI 3.1) and skill manifest (JSON Schema 2020-12) shared by the POD Studio webapp and the workers/skills runtime.",
+  "type": "module",
+  "files": [
+    "openapi",
+    "schemas",
+    "generated"
+  ],
+  "scripts": {
+    "lint:openapi": "redocly lint openapi/worker-api.yaml",
+    "validate": "node scripts/validate-examples.mjs",
+    "gen:types": "openapi-typescript openapi/worker-api.yaml -o generated/worker-api.d.ts",
+    "check": "npm run lint:openapi && npm run validate && npm run gen:types"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.55.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "openapi-typescript": "^7.13.0",
+    "yaml": "^2.9.1"
+  }
+}

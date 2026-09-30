@@ -1,0 +1,31 @@
+{
+  "uploads": [
+    {
+      "uploadKey": "results/job_V1tR8sK2mQ/1/0.png",
+      "url": "https://storage.example.internal/results/job_V1tR8sK2mQ/1/0.png?X-Amz-Signature=REDACTED",
+      "method": "PUT",
+      "headers": {
+        "Content-Type": "image/png"
+      },
+      "expiresAt": "2026-09-30T04:25:00Z"
+    },
+    {
+      "uploadKey": "results/job_V1tR8sK2mQ/1/1.png",
+      "url": "https://storage.example.internal/results/job_V1tR8sK2mQ/1/1.png?X-Amz-Signature=REDACTED",
+      "method": "PUT",
+      "headers": {
+        "Content-Type": "image/png"
+      },
+      "expiresAt": "2026-09-30T04:25:00Z"
+    },
+    {
+      "uploadKey": "results/job_V1tR8sK2mQ/1/2.png",
+      "url": "https://storage.example.internal/results/job_V1tR8sK2mQ/1/2.png?X-Amz-Signature=REDACTED",
+      "method": "PUT",
+      "headers": {
+        "Content-Type": "image/png"
+      },
+      "expiresAt": "2026-09-30T04:25:00Z"
+    }
+  ]
+}

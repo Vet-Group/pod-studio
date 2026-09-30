@@ -1,0 +1,20 @@
+{
+  "manifestVersion": "1",
+  "kind": "provider_skill",
+  "slug": "create-wall-art-mockups",
+  "name": "ChatGPT skill: create wall art mockups",
+  "version": "1.0.0",
+  "appliesTo": {
+    "jobTypes": [
+      "mockup"
+    ],
+    "providers": [
+      "chatgpt"
+    ]
+  },
+  "providerSkill": {
+    "provider": "chatgpt",
+    "externalName": "create-wall-art-mockups",
+    "mention": "@create-wall-art-mockups"
+  }
+}

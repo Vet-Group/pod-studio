@@ -1,0 +1,19 @@
+{
+  "target": "CompleteRequest",
+  "doc": {
+    "leaseToken": "lse_4f9c2a7e1b6d8f03a5c7e9b1",
+    "images": [
+      {
+        "uploadKey": "k",
+        "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+        "contentType": "image/png",
+        "width": 1,
+        "height": 1,
+        "bytes": 1
+      }
+    ],
+    "payload": {
+      "title": "x"
+    }
+  }
+}

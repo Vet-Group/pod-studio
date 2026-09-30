@@ -1,0 +1,20 @@
+{
+  "leaseToken": "lse_4f9c2a7e1b6d8f03a5c7e9b1",
+  "files": [
+    {
+      "contentType": "image/png",
+      "bytes": 2400000,
+      "sha256": "990179ec5064cf7956be1bf2364843b0a58b519e5d88a398f6027970ddeb0eb1"
+    },
+    {
+      "contentType": "image/png",
+      "bytes": 2400001,
+      "sha256": "6776128287ef2cb8ead79828e5b76f6eefbd55378c32a6f8a594785c5e0e5997"
+    },
+    {
+      "contentType": "image/png",
+      "bytes": 2400002,
+      "sha256": "bb619172719d183053c27a2dedd8eb7f1ca3f3728781137c6cbe8c2825f4fac7"
+    }
+  ]
+}

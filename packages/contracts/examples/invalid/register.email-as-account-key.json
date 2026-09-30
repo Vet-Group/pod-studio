@@ -1,0 +1,18 @@
+{
+  "target": "RegisterRequest",
+  "doc": {
+    "workerKey": "browser-01@studio-host",
+    "host": "h",
+    "version": "0.1.0",
+    "accounts": [
+      {
+        "accountKey": "someone@gmail.com",
+        "provider": "chatgpt",
+        "channel": "browser",
+        "jobTypes": [
+          "mockup"
+        ]
+      }
+    ]
+  }
+}

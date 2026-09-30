@@ -1,0 +1,44 @@
+{
+  "manifestVersion": "1",
+  "kind": "niche_agent",
+  "slug": "pod-design-halloween",
+  "name": "POD design agent: Halloween",
+  "version": "0.4.0",
+  "appliesTo": {
+    "jobTypes": [
+      "redesign"
+    ],
+    "niches": [
+      "halloween"
+    ]
+  },
+  "nicheAgent": {
+    "niche": "halloween",
+    "masterDataSchemaVersion": "2.0",
+    "masterData": {
+      "storageKey": "skills/pod-design-halloween/0.4.0/master-data.json",
+      "sha256": "21262a3cb5337627b0fad9d891c16adb40706bd3e57534416dd02bbe5917d184",
+      "bytes": 48211,
+      "contentType": "application/json"
+    },
+    "artifact": {
+      "storageKey": "skills/pod-design-halloween/0.4.0/skill.zip",
+      "sha256": "4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2",
+      "bytes": 183422,
+      "contentType": "application/zip"
+    },
+    "entrypoint": "SKILL.md",
+    "validation": {
+      "status": "passed",
+      "validatorVersion": "create_pod_design_skill.py@2.0",
+      "checkedAt": "2026-09-30T03:50:00Z",
+      "issues": [
+        {
+          "severity": "warning",
+          "path": "visual_vocabulary.motifs",
+          "message": "Only 11 motifs; 15 recommended."
+        }
+      ]
+    }
+  }
+}

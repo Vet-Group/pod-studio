@@ -1,0 +1,24 @@
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Local environment and secrets (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local tooling state
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Vendored generator scratch output
+tools/pod-skill-builder/.work/

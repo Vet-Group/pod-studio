@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pod-studio.internal/contracts/v2/schemas/job.schema.json",
+  "title": "Job payloads",
+  "description": "Inputs a worker receives and outputs it returns, per job type. Draft 1 for review.",
+  "$defs": {
+    "MockupParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["productType", "count", "ratio", "mode"],
+      "properties": {
+        "productType": { "type": "string", "minLength": 1, "maxLength": 64, "examples": ["poster", "canvas", "tshirt", "mug"] },
+        "count": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "ratio": { "$ref": "common.schema.json#/$defs/Ratio" },
+        "mode": { "type": "string", "enum": ["generate", "edit"] },
+        "niche": { "type": "string", "maxLength": 64 },
+        "extraInstructions": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "RedesignParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "ratio", "intent"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "ratio": { "$ref": "common.schema.json#/$defs/Ratio" },
+        "intent": { "type": "string", "enum": ["variation", "restyle", "cleanup", "upscale", "background_remove"] },
+        "niche": { "type": "string", "maxLength": 64 },
+        "extraInstructions": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "ListingContentParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale", "niche", "productType"],
+      "properties": {
+        "locale": { "$ref": "common.schema.json#/$defs/Locale" },
+        "niche": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "productType": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "context": { "type": "string", "maxLength": 8000, "description": "Free text from the seller or from a product analysis." },
+        "takenKeywords": {
+          "description": "Primary keywords already used in the target store. Must not be reused.",
+          "type": "array",
+          "maxItems": 2000,
+          "items": { "type": "string", "maxLength": 120 }
+        },
+        "analysisId": { "$ref": "common.schema.json#/$defs/Id" }
+      }
+    },
+    "ProductAnalysisParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locale"],
+      "properties": {
+        "locale": { "$ref": "common.schema.json#/$defs/Locale", "description": "Language of the analysis text shown to the seller." },
+        "niche": { "type": "string", "maxLength": 64 },
+        "productType": { "type": "string", "maxLength": 64 },
+        "competitorUrls": {
+          "type": "array",
+          "maxItems": 5,
+          "items": { "type": "string", "format": "uri" }
+        },
+        "notes": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "OutputImage": {
+      "description": "One uploaded image. The key must come from POST /jobs/{jobId}/uploads for the same lease.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uploadKey", "sha256", "contentType", "width", "height", "bytes"],
+      "properties": {
+        "uploadKey": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "sha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+        "contentType": { "$ref": "common.schema.json#/$defs/ImageContentType" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string", "maxLength": 120, "examples": ["living room", "detail shot", "packaging"] },
+        "meta": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "ListingContentPayload": {
+      "description": "Raw listing content. The server sanitizes and enforces limits; workers should not truncate. Locale is taken from the job params, never from this payload.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["title", "description", "tags", "seoTitle", "seoDescription", "urlHandle"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "artworkName": { "type": "string", "maxLength": 120 },
+        "primaryKeyword": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 20000, "description": "HTML fragment." },
+        "tags": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+        "seoTitle": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "seoDescription": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "urlHandle": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "ProductAnalysisPayload": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["summary", "audiences", "keywords"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "audiences": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string", "maxLength": 120 },
+              "why": { "type": "string", "maxLength": 1000 }
+            }
+          }
+        },
+        "occasions": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 120 } },
+        "keywords": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary"],
+          "properties": {
+            "primary": { "type": "array", "minItems": 1, "maxItems": 10, "items": { "type": "string", "maxLength": 120 } },
+            "secondary": { "type": "array", "maxItems": 40, "items": { "type": "string", "maxLength": 120 } }
+          }
+        },
+        "sellingAngles": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 500 } },
+        "suggestedProductTypes": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 64 } },
+        "priceHint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["currency", "min", "max"],
+          "properties": {
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+            "min": { "type": "number", "minimum": 0 },
+            "max": { "type": "number", "minimum": 0 }
+          }
+        },
+        "ipRisks": {
+          "description": "Possible trademark, copyright or likeness risks. The seller decides; the webapp only warns.",
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["severity", "note"],
+            "properties": {
+              "severity": { "type": "string", "enum": ["info", "warn", "high"] },
+              "term": { "type": "string", "maxLength": 120 },
+              "note": { "type": "string", "maxLength": 1000 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

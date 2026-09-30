@@ -1,0 +1,8 @@
+{
+  "target": "FailRequest",
+  "doc": {
+    "leaseToken": "lse_4f9c2a7e1b6d8f03a5c7e9b1",
+    "errorClass": "timeout",
+    "message": "x"
+  }
+}

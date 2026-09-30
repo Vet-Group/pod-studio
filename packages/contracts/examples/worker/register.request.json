@@ -1,0 +1,35 @@
+{
+  "workerKey": "browser-01@studio-host",
+  "host": "studio-host",
+  "version": "0.1.0",
+  "accounts": [
+    {
+      "accountKey": "chatgpt-acc1",
+      "provider": "chatgpt",
+      "channel": "browser",
+      "jobTypes": [
+        "mockup",
+        "redesign",
+        "listing_content",
+        "product_analysis"
+      ],
+      "maxConcurrency": 1,
+      "installedSkills": [
+        {
+          "slug": "create-wall-art-mockups",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    {
+      "accountKey": "grok-acc1",
+      "provider": "grok",
+      "channel": "browser",
+      "jobTypes": [
+        "mockup",
+        "redesign"
+      ],
+      "maxConcurrency": 1
+    }
+  ]
+}
