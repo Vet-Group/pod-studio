@@ -131,7 +131,7 @@ Xem `packages/contracts/README.md`. Điểm chính cần ngatruong123 duyệt:
 | 6 | Skills và vận hành | admin, người viết skill | Thư viện skill 3 loại, account AI (kèm trạng thái đăng nhập lại), worker |
 | 7 | Dữ liệu ngách | người viết skill, người publish | Soạn niche master data 5 bước, validator có nút Sửa, chấm 6 tiêu chí, build skill version |
 
-Kiểm bằng máy: `node design/wireframes/test-wireframes.mjs` đạt 104/104 (điều hướng, phím tắt, quyền, luật tối thiểu và chấm điểm màn 7, không tràn ngang ở 1024/760/390 trên cả 7 màn).
+Kiểm bằng máy: `node design/wireframes/test-wireframes.mjs` đạt 108/108 (điều hướng, phím tắt, quyền, luật tối thiểu và chấm điểm màn 7, không tràn ngang ở 1024/760/390 trên cả 7 màn, tương phản WCAG AA, chữ tối thiểu 11px, vùng bấm tối thiểu 32px ở cả 3 hướng thị giác).
 
 ## 7b. Niche master data và build skill (tóm tắt ADR 0003)
 

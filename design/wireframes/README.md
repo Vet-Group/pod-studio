@@ -26,9 +26,9 @@ Ba chủ đề: 01 Sáng tạo (sáng), 02 Vận hành (dày thông tin), 03 Ph�
 node design/wireframes/test-wireframes.mjs
 ```
 
-Cần một Chrome/Chromium; đặt đường dẫn qua biến `CHROME_PATH` (mặc định là Chromium của Playwright trên máy này). Script dùng CDP trực tiếp, không cần cài package. Kiểm: điều hướng 7 màn, focus và Esc trả focus về nút mở, phím A/R/mũi tên, ma trận quyền, luật tối thiểu, lỗi validator, chấm điểm và build của màn 7, không tràn ngang và không cắt nhãn thanh điều hướng ở 1024/760/390 trên cả 7 màn, chụp ảnh vào `screenshots/`.
+Cần một Chrome/Chromium; đặt đường dẫn qua biến `CHROME_PATH` (mặc định là Chromium của Playwright trên máy này). Script dùng CDP trực tiếp, không cần cài package. Kiểm: điều hướng 7 màn, focus và Esc trả focus về nút mở, phím A/R/mũi tên, ma trận quyền, luật tối thiểu, lỗi validator, chấm điểm và build của màn 7, không tràn ngang và không cắt nhãn thanh điều hướng ở 1024/760/390 trên cả 7 màn, sàn chất lượng giao diện trên 7 màn × 4 độ rộng × 3 hướng (chữ đạt tương phản WCAG AA, không chữ dưới 11px, nút và ô chọn tối thiểu 32px, thông báo không che thanh nút dính), chụp ảnh vào `screenshots/`.
 
-Lần chạy gần nhất: 104/104 đạt.
+Lần chạy gần nhất: 108/108 đạt.
 
 ## Giới hạn
 

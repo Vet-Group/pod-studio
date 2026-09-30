@@ -248,6 +248,54 @@ try {
   }
   await viewport(1440, 1000);
 
+  // UI quality floor across screens, widths and visual directions: WCAG AA text contrast,
+  // no text under 11px, controls at least 32px, and toasts never covering sticky action bars.
+  const QUALITY = `(()=>{
+    const parse=c=>{const m=c.match(/rgba?\\(([^)]+)\\)/);if(!m)return null;const p=m[1].split(/[ ,\\/]+/).filter(Boolean).map(Number);return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}};
+    const lum=({r,g,b})=>{const f=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)};return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b)};
+    const bgOf=el=>{const layers=[];for(let e=el;e;e=e.parentElement){const c=parse(getComputedStyle(e).backgroundColor);if(c&&c.a>0){layers.push(c);if(c.a>=1)break;}}let base={r:255,g:255,b:255};for(const c of layers.reverse())base={r:c.r*c.a+base.r*(1-c.a),g:c.g*c.a+base.g*(1-c.a),b:c.b*c.a+base.b*(1-c.a)};return base};
+    const vis=e=>{const r=e.getBoundingClientRect();const s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'&&+s.opacity>0.05};
+    const name=e=>(e.innerText||e.getAttribute('aria-label')||e.className||e.tagName).toString().trim().slice(0,24);
+    const contrast=[],small=[],tiny=[];const seen=new Set();
+    const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+    while(w.nextNode()){const e=w.currentNode.parentElement;if(!w.currentNode.textContent.trim()||!e||seen.has(e)||!vis(e)||e.closest('svg,.sr,[aria-hidden=true],[disabled],[aria-disabled=true]'))continue;seen.add(e);
+      const s=getComputedStyle(e);const fs=parseFloat(s.fontSize);if(fs<11)small.push(name(e)+' '+fs+'px');
+      const fg=parse(s.color);if(!fg)continue;const bg=bgOf(e);const mix={r:fg.r*fg.a+bg.r*(1-fg.a),g:fg.g*fg.a+bg.g*(1-fg.a),b:fg.b*fg.a+bg.b*(1-fg.a)};
+      const a=lum(mix),b=lum(bg);const cr=(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);const need=(fs>=24||(fs>=18.66&&+s.fontWeight>=700))?3:4.5;
+      if(cr<need)contrast.push(name(e)+' '+cr.toFixed(2));}
+    for(const e of document.querySelectorAll('button,a[href],input,select,textarea,summary,label.cardcheck,label.checkline')){if(!vis(e)||(e.matches('input[type=checkbox],input[type=radio]')&&e.closest('label')))continue;const r=e.getBoundingClientRect();if(r.height<32||r.width<32)tiny.push(name(e)+' '+Math.round(r.width)+'x'+Math.round(r.height));}
+    return {contrast,small,tiny};})()`;
+  const floor = { contrast: [], small: [], tiny: [] };
+  for (const theme of ['light', 'dense', 'dark']) {
+    await click(`[data-theme="${theme}"]`);
+    for (const [w, h] of [[1440, 1000], [1024, 900], [760, 1000], [390, 844]]) {
+      await viewport(w, h);
+      for (const s of ['studio', 'review', 'listing', 'products', 'team', 'skills', 'niche']) {
+        await click(`[data-nav="${s}"]`); await sleep(40);
+        const q = await ev(QUALITY);
+        for (const k of Object.keys(floor)) for (const x of q[k]) floor[k].push(`${theme}/${w}/${s}: ${x}`);
+      }
+    }
+  }
+  await click('[data-theme="light"]');
+  check('Chữ đạt tương phản WCAG AA ở 3 hướng và 4 độ rộng', floor.contrast.length === 0, floor.contrast.slice(0, 3).join(' | '));
+  check('Không có chữ nhỏ hơn 11px', floor.small.length === 0, floor.small.slice(0, 3).join(' | '));
+  check('Nút và ô chọn tối thiểu 32px', floor.tiny.length === 0, floor.tiny.slice(0, 3).join(' | '));
+  const toastHits = [];
+  for (const [w, h] of [[1440, 1000], [1024, 900], [760, 1000], [390, 844]]) {
+    await viewport(w, h);
+    for (const s of ['review', 'niche']) {
+      await click(`[data-nav="${s}"]`); await sleep(40);
+      for (const y of ['0', 'document.documentElement.scrollHeight']) {
+        await ev(`window.scrollTo(0, ${y})`); await sleep(40);
+        const hit = await ev(`(async()=>{toast('Kiểm tra vị trí thông báo');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=document.querySelector('#toast').getBoundingClientRect();const pe=getComputedStyle(document.querySelector('#toast')).pointerEvents;const out=[...document.querySelectorAll('.reviewcontrols button,.nbar button')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.bottom>0&&b.top<innerHeight&&!(a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom)}).map(e=>e.textContent.trim());document.querySelector('#toast').textContent='';return pe!=='none'?['pointer-events='+pe]:out})()`);
+        for (const x of hit) toastHits.push(`${s}/${w}: ${x}`);
+      }
+    }
+  }
+  await viewport(1440, 1000);
+  check('Thông báo không che thanh nút dính và không chặn click', toastHits.length === 0, toastHits.slice(0, 3).join(' | '));
+
   // Focus visibility and semantics
   await click('[data-nav="studio"]');
   const clickableDivs = await ev('[...document.querySelectorAll("div[onclick],span[onclick]")].length');
