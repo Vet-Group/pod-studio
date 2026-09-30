@@ -57,10 +57,10 @@ try {
   await send('Page.navigate', { url: pathToFileURL(indexPath).href }); await sleep(900);
 
   // 1 Studio
-  check('Có 6 mục điều hướng', (await ev('document.querySelectorAll("#nav button").length')) === 6);
+  check('Có 7 mục điều hướng', (await ev('document.querySelectorAll("#nav button").length')) === 7);
   check('Sidebar đo được 216px', (await ev('document.querySelector(".sidebar").getBoundingClientRect().width')) === 216);
   check('Tiêu đề trang bằng tiếng Việt', (await ev('document.title')).includes('Bàn làm việc'));
-  check('Thư viện dùng chung ghi rõ là đề xuất', (await text()).includes('đề xuất, chưa xác nhận'));
+  check('Studio ghi quyết định đã chốt, không còn chữ đề xuất', (await text()).includes('dùng chung toàn công ty đã chốt') && !(await text()).includes('chưa xác nhận'));
   check('Nhãn DEMO hiển thị', (await ev('document.querySelector(".demo").innerText')) === 'DEMO');
   check('Hiển thị 6 thẻ thiết kế SVG', (await ev('document.querySelectorAll(".designcard svg").length')) >= 6);
   await shot('01-studio-1440');
@@ -170,6 +170,53 @@ try {
   await click('[data-skilltab="providers"]');
   check('Không có chuyển API dự phòng', (await text()).includes('không tự chuyển sang API khác'));
 
+  // 7 Dữ liệu ngách: soạn niche master data theo schema 2.0 của generator
+  await click('[data-nav="niche"]'); await sleep(80);
+  const nq = sel => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText`);
+  const nset = (sel, v) => ev(`(()=>{const s=document.querySelector(${JSON.stringify(sel)});s.value=${JSON.stringify(v)};s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
+  const disabled = sel => ev(`document.querySelector(${JSON.stringify(sel)}).disabled`);
+  check('Đổi màn thì tắt thông báo của màn trước', (await ev('document.querySelector("#toast").textContent')) === '');
+  check('Màn 7 mở từ điều hướng', (await nq('h1')) === 'Soạn master data, build skill.');
+  check('Màn 7 có đúng 5 bước', (await ev('document.querySelectorAll("[data-nstep]").length')) === 5);
+  const t7 = await text();
+  check('Quyền soạn và publish tách riêng', t7.includes('skill.edit') && t7.includes('skill.publish'));
+  const allSections = await ev(`(async()=>{const ids=[];for(let i=0;i<5;i++){document.querySelector('[data-nstep="'+i+'"]').click();await new Promise(r=>setTimeout(r,30));document.querySelectorAll('[data-section]').forEach(s=>ids.push(s.dataset.section));}document.querySelector('[data-nstep="0"]').click();return ids})()`);
+  check('Đủ 17 section của schema', allSections.length === 17 && new Set(allSections).size === 17, allSections.length + ' section');
+  check('Bước 1 báo persona 8/8', (await nq('[data-count="personas"]')) === '8 / tối thiểu 8');
+  check('Trạng thái dữ liệu có đúng 3 mức', (await ev('[...document.querySelectorAll("#nicheStatus option")].map(o=>o.value).join(",")')) === 'curated-draft,researched,validated');
+  check('Thiếu dữ liệu thì chặn build', (await disabled('[data-nbuild]')) === true);
+  const errText = await nq('.nerrs');
+  check('Lỗi dịp mua đúng định dạng validator', errText.includes('- occasions: requires at least 8 records; found 6'));
+  check('Lỗi brief mẫu đúng ngưỡng 6', errText.includes('- sample_briefs: requires at least 6 records; found 4'));
+  check('Bước có lỗi gắn nhãn đỏ', (await nq('[data-nstep="1"] .badge.red')) === '1 lỗi');
+  await click('[data-nfix="occasions"]'); await sleep(60);
+  check('Nút Sửa nhảy tới đúng bước', (await ev('document.querySelector("[aria-current=step]").dataset.nstep')) === '1');
+  check('Nút Sửa đưa focus tới trường lỗi', (await ev('document.activeElement.dataset.nadd')) === 'occasions');
+  await click('[data-nadd="occasions"]'); await click('[data-nadd="occasions"]');
+  check('Thêm dịp mua tới 8/8 thì hết lỗi', (await nq('[data-count="occasions"]')) === '8 / tối thiểu 8' && !(await nq('.nerrs')).includes('occasions'));
+  await click('[data-nnext]'); await sleep(40);
+  check('Kiểu chữ yêu cầu tối thiểu 3', (await nq('[data-count="visual_vocabulary.typography"]')) === '3 / tối thiểu 3');
+  await click('[data-nnext]'); await sleep(40);
+  await click('[data-nadd="sample_briefs"]'); await click('[data-nadd="sample_briefs"]');
+  check('Brief mẫu đạt 6/6', (await nq('[data-count="sample_briefs"]')) === '6 / tối thiểu 6');
+  check('Chấm thị trường có 6 tiêu chí', (await ev('document.querySelectorAll("[data-score]").length')) === 6);
+  check('Tổng điểm mặc định 26/30 là Làm', (await nq('#fitTotal')) === '26/30' && (await nq('#fitVerdict')) === 'Làm');
+  await nset('[data-score="ip"]', '3'); await sleep(40);
+  check('Điểm IP dưới 4 luôn chặn', (await nq('#fitVerdict')).startsWith('Chặn'));
+  await nset('[data-score="ip"]', '5'); await sleep(40);
+  await click('[data-nnext]'); await sleep(40);
+  check('Style variant đúng 4, nút thêm bị khóa', (await nq('[data-count="style_variants"]')) === '4 / đúng 4' && (await disabled('[data-nadd="style_variants"]')) === true);
+  const qa = await nq('[data-section="qa_rules"]');
+  check('Luật QA là object, có nền #00FF00 và tỉ lệ 3:4', qa.includes('#00FF00') && qa.includes('3:4'));
+  await nset('#nicheMaxColors', '13'); await sleep(40);
+  check('Số màu 13 bị báo lỗi 1 đến 12', (await text()).includes('qa_rules.max_colors: expected an integer from 1 to 12') && (await disabled('[data-nbuild]')) === true);
+  await nset('#nicheMaxColors', '6'); await sleep(40);
+  check('Đủ dữ liệu thì mở build', (await disabled('[data-nbuild]')) === false);
+  await click('[data-nbuild]'); await sleep(60);
+  const built = await text();
+  check('Build xong vẫn chưa publish', built.includes('Đã build skill version v3 DEMO') && built.includes('Chưa publish') && (await ev('document.activeElement.className')) === 'nbuilt');
+  await shot('12-niche-1440');
+
   // Themes
   for (const [t, name] of [['dense', '10-theme-dense-1440'], ['dark', '11-theme-dark-1440']]) {
     await click(`[data-theme="${t}"]`); await click('[data-nav="studio"]');
@@ -179,14 +226,14 @@ try {
   await click('[data-theme="light"]');
 
   // Responsive
-  for (const [w, h] of [[1024, 900], [390, 844]]) {
+  for (const [w, h] of [[1024, 900], [760, 1000], [390, 844]]) {
     await viewport(w, h);
     // Every nav label must be fully visible: inside the viewport and not truncated by its own box.
     const navClip = await ev(`[...document.querySelectorAll('#nav button')].filter(b => { const r = b.getBoundingClientRect(); const l = b.querySelector('span'); return r.left < 0 || r.right > ${w} + 1 || (l && l.scrollWidth > l.clientWidth + 1); }).map(b => b.textContent.trim())`);
     check(`Thanh điều hướng không cắt nhãn ${w}px`, navClip.length === 0, navClip.join(', '));
     // Compare against the requested width: with mobile emulation window.innerWidth grows with the
     // content, which hid a real 122px overflow on the review screen.
-    for (const s of ['studio', 'review', 'listing', 'products', 'team', 'skills']) {
+    for (const s of ['studio', 'review', 'listing', 'products', 'team', 'skills', 'niche']) {
       await click(`[data-nav="${s}"]`); await sleep(80);
       const overflow = await ev(`document.documentElement.scrollWidth - ${w}`);
       check(`Không tràn ngang ${s} ${w}px`, overflow <= 1, 'dư ' + overflow + 'px');

@@ -13,7 +13,10 @@ Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia c�
 | P3-05 | Gia cố bảo mật | webapp | P1-03, P1-07, P2-05 | không |
 | P3-06 | Quan sát và báo cáo usage | webapp | P1-11, P3-04 | 6 |
 | P3-07 | Đo tải theo profile và cổng đạt | webapp | P1-06, P1-07, P1-08, P3-06 | 6 |
-| P3-08 | Hoàn thiện UI và accessibility | webapp | P1-09, P1-10, P2-02, P2-08, P3-04 | 1, 2, 3, 4, 5, 6 |
+| P3-08 | Hoàn thiện UI và accessibility | webapp | P1-09, P1-10, P2-02, P2-08, P3-04 | 1, 2, 3, 4, 5, 6, 7 |
+| P3-09 | Màn soạn niche master data theo schema 2.0 | webapp | P3-01, P3-02 | 7 |
+| P3-10 | Chấm độ hợp thị trường và build skill version từ master data | webapp + ngatruong123 | P3-09 | 7 |
+| P3-11 | Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại | webapp + ngatruong123 | P3-04, P3-05 | 6 |
 
 ---
 
@@ -256,3 +259,100 @@ Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia c�
 **Điều kiện xong**
 
 - Checklist UI đạt ở cả 3 kích thước
+
+## P3-09 Màn soạn niche master data theo schema 2.0
+
+- **Owner:** webapp
+- **Phụ thuộc:** P3-01, P3-02
+- **Màn prototype:** 7
+- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+
+**Mục tiêu.** Form 5 bước soạn đủ 17 section của schema 2.0; đếm tối thiểu theo từng field như generator, style_variants đúng 4; lỗi hiển thị cùng định dạng validator và nút Sửa đưa focus về field; trạng thái dữ liệu curated-draft, researched, validated; bản nháp lưu tự động theo skill.edit.
+
+**Đường dẫn đề xuất**
+
+- `packages/core/src/skills/niche-schema.ts`
+- `packages/core/src/skills/niche-rules.ts`
+- `apps/web/src/app/(app)/skills/niche/[id]/page.tsx`
+- `apps/web/src/features/skills/niche-editor/`
+
+**Test dự kiến** (PLANNED - not implemented, not executed)
+
+- `packages/core/test/skills/niche-schema.test.ts`
+  - occasions 6 bản ghi: lỗi requires at least 8 records; found 6
+  - style_variants 5 bản ghi: lỗi requires exactly 4
+  - qa_rules.max_colors 13: lỗi expected an integer from 1 to 12
+  - Bảng màu chứa #00FF00: bị từ chối
+  - Dữ liệu mẫu teacher-example-data.json: hợp lệ
+- `apps/web/test/e2e/niche-editor.spec.ts`
+  - Nút Sửa nhảy đúng bước và focus field lỗi
+  - Còn lỗi thì nút build bị khóa
+  - Không tràn ngang ở 1024, 760, 390px
+
+**Điều kiện xong**
+
+- Luật tối thiểu trong UI và validator Python cho cùng kết quả trên bộ dữ liệu mẫu
+
+---
+
+## P3-10 Chấm độ hợp thị trường và build skill version từ master data
+
+- **Owner:** webapp + ngatruong123
+- **Phụ thuộc:** P3-09
+- **Màn prototype:** 7
+- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+
+**Mục tiêu.** Chấm 6 tiêu chí 1 đến 5 (rõ ý, hợp làm quà, cảm xúc, khác biệt, làm thành bộ, an toàn IP), tối đa 30; 25 trở lên làm, 21 chỉnh, 16 làm lại, 15 trở xuống thay; IP dưới 4 luôn chặn. Build gọi generator như job worker có timeout, ra skill_version bất biến, chưa publish.
+
+**Đường dẫn đề xuất**
+
+- `packages/core/src/skills/market-fit.ts`
+- `apps/jobs/src/skills/build-niche-skill.ts`
+- `packages/contracts/schemas/niche-master-data.schema.json`
+
+**Test dự kiến** (PLANNED - not implemented, not executed)
+
+- `packages/core/test/skills/market-fit.test.ts`
+  - 26 điểm, IP 5: Làm
+  - 24 điểm: Chỉnh
+  - IP 3 dù tổng 27: Chặn
+  - 15 điểm: Thay
+- `apps/jobs/test/skills/build-niche-skill.test.ts`
+  - Generator quá thời gian: job lỗi rõ, không tạo version
+  - Build thành công: version mới trạng thái draft, không tự publish
+
+**Điều kiện xong**
+
+- Mọi skill version build từ master data truy được về bản master data và điểm chấm
+
+---
+
+## P3-11 Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại
+
+- **Owner:** webapp + ngatruong123
+- **Phụ thuộc:** P3-04, P3-05
+- **Màn prototype:** 6
+- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+
+**Mục tiêu.** Lưu thông tin đăng nhập tài khoản subscription (ChatGPT, Claude, Grok, Gemini và dịch vụ khác) trong OpenBao KV v2, TOTP qua secrets engine totp. Worker xác thực AppRole, nhận secret qua response wrapping dùng một lần. Khi account_state về session_expired, worker tự đăng nhập lại; captcha hoặc xác minh thiết bị thì chuyển trạng thái chờ người và báo admin. Webapp chỉ thấy metadata, không bao giờ thấy giá trị bí mật.
+
+**Đường dẫn đề xuất**
+
+- `infra/openbao/policies/worker-accounts.hcl`
+- `infra/openbao/docker-compose.openbao.yml`
+- `packages/contracts/schemas/account-credential-ref.schema.json`
+- `apps/web/src/features/accounts/credential-status.tsx`
+
+**Test dự kiến** (PLANNED - not implemented, not executed)
+
+- `packages/core/test/accounts/credential-ref.test.ts`
+  - API webapp trả metadata tài khoản không chứa giá trị bí mật
+  - Wrap token dùng lần hai: bị từ chối
+  - Policy worker không đọc được path của store khác
+- `apps/web/test/e2e/account-relogin.spec.ts`
+  - session_expired: worker báo đăng nhập lại thành công, trạng thái về available
+  - Gặp captcha: trạng thái chờ người, admin nhận cảnh báo
+
+**Điều kiện xong**
+
+- Không có mật khẩu, cookie hoặc seed TOTP nào nằm trong Postgres, log hay payload job

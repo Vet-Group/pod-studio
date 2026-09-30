@@ -1,7 +1,8 @@
-# Plan: Webapp nội bộ "POD Studio" (bản v0.2)
+# Plan: Webapp nội bộ "POD Studio" (bản v0.3)
 
 > Trạng thái: **chưa triển khai code sản phẩm**. Ngày 2026-09-30.
 > v0.2 thay v0.1 (lưu ở `pod-studio/docs/plan-v0.1-archive.md`) theo các quyết định anh chốt hôm nay.
+> v0.3 thêm: chốt phạm vi thư viện (design theo store, skill dùng chung), màn 7 soạn niche master data, chấm độ hợp thị trường, kho bí mật OpenBao cho account subscription (ADR 0003, task P3-09 đến P3-11).
 > Nguồn: `Downloads/prd-rebuild.md` là tài liệu nghiệp vụ tham khảo được chia sẻ lại. **Không có repo `storekit` hay `mockup-worker`**, nên không có code để port, không có dữ liệu để migrate và không có hệ thống cũ cần tương thích.
 > Phạm vi của anh: webapp, API, DB, scheduler. Phạm vi của ngatruong123: workers (browser/API) và skills runtime.
 
@@ -11,8 +12,9 @@ Toàn bộ artifact nằm trong `C:/Users/Administrator/pod-studio/`:
 |---|---|
 | `docs/adr/0001-stack.md` | Chốt stack, có đánh giá Preact Signals |
 | `docs/adr/0002-access-model.md` | Tài khoản, lời mời, phân quyền theo store |
+| `docs/adr/0003-niche-skill-builder.md` | Niche master data, build skill version, chấm thị trường, OpenBao |
 | `packages/contracts/` | Worker API v2 (OpenAPI 3.1) + JSON Schema skill manifest, có ví dụ và script tự kiểm |
-| `design/wireframes/` | Prototype 6 màn chính (HTML chạy offline) |
+| `design/wireframes/` | Prototype 7 màn chính (HTML chạy offline) |
 | `tasks/` | Task P1-P3 chi tiết có file path và test, kèm `tasks.json` |
 
 ---
@@ -28,6 +30,9 @@ Toàn bộ artifact nằm trong `C:/Users/Administrator/pod-studio/`:
 | Quota, ngân sách | **Không làm.** Chỉ ghi `usage_events` (store, người yêu cầu, owner của store tại thời điểm đó) để sau này chia chi phí theo store hoặc leader. |
 | Stack | Next.js + React + TypeScript + Tailwind v4 + shadcn/ui + Drizzle + Postgres + better-auth + pg-boss. Chi tiết và lý do: ADR 0001. |
 | Preact Signals | Chưa dùng. Lý do ở §3. |
+| Phạm vi thư viện | Design, mockup, redesign **theo store**; chia sẻ sang store khác là thao tác riêng. Thư viện **skill dùng chung toàn công ty**: ai có `skill.edit` soạn nháp, chỉ ai có `skill.publish` mới publish. |
+| Niche master data | Soạn trên webapp theo schema 2.0 của generator, build ra skill version bất biến, không tự publish. Chi tiết §7b, ADR 0003. |
+| Bí mật account subscription | Lưu trong OpenBao (KV v2 + TOTP engine), worker lấy qua AppRole và response wrapping, tự đăng nhập lại khi hết phiên. Postgres chỉ giữ metadata. |
 
 ## 2. Dùng lại gì từ PRD
 
@@ -114,7 +119,7 @@ Xem `packages/contracts/README.md`. Điểm chính cần ngatruong123 duyệt:
 
 Đã kiểm bằng máy: `npm run check` (redocly lint 0 cảnh báo, 30/30 ca validate gồm 9 ca lỗi cố ý bị từ chối, sinh TypeScript types), và `tsc --strict` trên file kiểm types.
 
-## 7. Sáu màn chính (wireframe)
+## 7. Bảy màn chính (wireframe)
 
 | # | Màn | Người dùng chính | Nội dung |
 |---|---|---|---|
@@ -123,7 +128,23 @@ Xem `packages/contracts/README.md`. Điểm chính cần ngatruong123 duyệt:
 | 3 | Listing | seller | Phân tích sản phẩm, sinh và sửa content đa ngôn ngữ, cảnh báo keyword trùng |
 | 4 | Products và push | seller, owner | Variant theo bảng giá, dry-run, push draft, public (cần quyền) |
 | 5 | Stores và thành viên | owner | Chọn store, thành viên, bật tắt quyền, mời người |
-| 6 | Skills và vận hành | admin, người viết skill | Thư viện skill 3 loại, account AI, worker |
+| 6 | Skills và vận hành | admin, người viết skill | Thư viện skill 3 loại, account AI (kèm trạng thái đăng nhập lại), worker |
+| 7 | Dữ liệu ngách | người viết skill, người publish | Soạn niche master data 5 bước, validator có nút Sửa, chấm 6 tiêu chí, build skill version |
+
+Kiểm bằng máy: `node design/wireframes/test-wireframes.mjs` đạt 101/101 (điều hướng, phím tắt, quyền, luật tối thiểu và chấm điểm màn 7, không tràn ngang ở 1024/760/390 trên cả 7 màn).
+
+## 7b. Niche master data và build skill (tóm tắt ADR 0003)
+
+- Nguồn sự thật là master data JSON schema 2.0; skill version là kết quả build, truy được về bản master data và điểm chấm.
+- 17 section, chia 5 bước. Mọi list là **tối thiểu**, chỉ `style_variants` là **đúng 4**:
+  - Bước 1: thông tin cơ bản, `niche_profile` (6 ô), nguồn dữ liệu (ít nhất 1, trạng thái `curated-draft`, `researched`, `validated`), persona 8, cặp người mua và người nhận 5.
+  - Bước 2: dịp mua 8, cảm xúc 6, ngôn ngữ người mua 6.
+  - Bước 3: motif 10, bảng màu 3, kiểu chữ 3, bố cục 4, sản phẩm phù hợp 5, trường cá nhân hóa 4.
+  - Bước 4: hook 8, brief mẫu 6, ngưỡng chấm thị trường.
+  - Bước 5: style variant đúng 4, an toàn IP (tránh 5, cặp thay thế 3, dấu hiệu cần người duyệt 3), luật QA là 1 object (nền `#00FF00`, tỉ lệ `3:4`, số màu 1 đến 12).
+- Chấm độ hợp thị trường: 6 tiêu chí 1 đến 5 (rõ ý, hợp làm quà, cảm xúc, khác biệt, làm thành bộ, an toàn IP), tối đa 30. 25 trở lên làm, 21 chỉnh, 16 làm lại, 15 trở xuống thay. IP dưới 4 luôn chặn.
+- Lỗi dùng cùng câu với generator (`occasions: requires at least 8 records; found 6`). Generator vẫn là bên chấm cuối: một bộ fixture chung phải cho cùng kết quả ở rule TypeScript và script Python.
+- Giấy phép của generator trong bản chia sẻ chưa rõ; build job gọi script từ skill pack, không chép code vào repo cho tới khi làm rõ.
 
 ## 8. Lộ trình
 
@@ -132,23 +153,24 @@ Xem `packages/contracts/README.md`. Điểm chính cần ngatruong123 duyệt:
 | **P0** (đang làm) | Wireframe, contract, ADR, task breakdown | ngatruong123 duyệt contract; anh duyệt wireframe |
 | **P1 Nền móng + Studio** | Monorepo, auth + lời mời, phân quyền store, audit log, object storage, bảng lease + Worker API v2, fake-worker, Studio, Duyệt ảnh | Thin slice chạy trọn: mời user, upload, tạo job, fake-worker trả ảnh, duyệt; không cần worker thật |
 | **P2 Listing + Shopify** | Phân tích, content, catalog, bảng giá, tạo product, push dry-run/draft/public, import | Push thật lên dev store: đúng variant, giá, market, bản dịch; bất biến PRD §20 thành test |
-| **P3 Skills + vận hành** | Vòng đời skill, màn account AI/worker, harden bảo mật, đo tải | Có số liệu tải theo profile cụ thể; checklist bảo mật đạt |
+| **P3 Skills + vận hành** | Vòng đời skill, màn account AI/worker, harden bảo mật, đo tải, soạn niche master data và build skill, OpenBao cho account subscription | Có số liệu tải theo profile cụ thể; checklist bảo mật đạt; build skill từ master data mẫu cho cùng kết quả với generator; account hết phiên tự đăng nhập lại hoặc chuyển chờ người |
 
-Chi tiết từng task: `pod-studio/tasks/`.
+Chi tiết từng task: `pod-studio/tasks/` (32 task: P1 11, P2 10, P3 11; `node tasks/validate-tasks.mjs` đạt).
 
 ## 9. Rủi ro
 
 | Rủi ro | Giảm thiểu |
 |---|---|
 | Worker thật trễ hơn webapp | fake-worker theo đúng contract; P1 không phụ thuộc worker thật |
-| Account subscription bị khoá hoặc hết phiên | Error class tách riêng, account vào trạng thái cooldown/hết phiên, admin được báo |
+| Account subscription bị khoá hoặc hết phiên | Error class tách riêng; worker lấy mật khẩu và mã TOTP từ OpenBao để tự đăng nhập lại; gặp captcha hoặc xác minh thiết bị thì chuyển chờ người, admin được báo |
+| Lộ mật khẩu account subscription | Chỉ OpenBao giữ giá trị; job mang `credential_ref`; wrap token dùng 1 lần; Postgres, log và payload không bao giờ chứa bí mật |
+| Editor lệch luật với generator | Fixture chung chạy cả rule TypeScript lẫn script Python trong CI; generator là bên chấm cuối |
 | Push sai lên store thật | Dry-run bắt buộc, lần đầu mặc định draft, quyền publish tách riêng, kiểm lại quyền lúc chạy |
-| Đổi policy chia sẻ design sau này | Mặc định an toàn: design thuộc phạm vi store cho tới khi anh chốt |
 | Repo công khai lộ credential | Không commit secret; pre-commit chặn file config nhạy cảm |
 
 ## 10. Câu hỏi còn mở (không chặn P1)
 
-1. **Thư viện design dùng chung toàn công ty hay riêng từng store?** ADR 0002 đề xuất dùng chung, nhưng khi code sẽ mặc định riêng theo store cho tới khi anh chốt. Designer phục vụ nhiều leader thì dùng chung tiện hơn; leader muốn giữ design riêng thì cần phạm vi store.
-2. Ai được tạo store mới: chỉ admin, hay leader được admin cấp quyền `store.create`?
-3. Tên miền và nơi chạy production (1 VPS hay nhiều máy)? Ảnh hưởng tới object storage (MinIO tự chạy hay R2).
-4. Có cần email thật (quên mật khẩu tự phục vụ) hay admin gửi link reset qua chat là đủ?
+1. Ai được tạo store mới: chỉ admin, hay leader được admin cấp quyền `store.create`?
+2. Tên miền và nơi chạy production (1 VPS hay nhiều máy)? Ảnh hưởng tới object storage (MinIO tự chạy hay R2).
+3. Có cần email thật (quên mật khẩu tự phục vụ) hay admin gửi link reset qua chat là đủ?
+4. OpenBao chạy chung máy với webapp hay máy riêng, và ai giữ unseal key? Ảnh hưởng tới P3-11.

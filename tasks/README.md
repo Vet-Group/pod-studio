@@ -8,7 +8,7 @@
 - ID ổn định dạng `P1-01`. `depends_on` là điều kiện kỹ thuật phải hoàn tất trước khi task được nghiệm thu; có thể thiết kế song song.
 - `owner`: `web` là đội webapp, `worker` là ngatruong123, `both` là phối hợp hai đội. Mã worker thật nằm ở repo ngoài, không giả định đường dẫn hoặc repo đó đã tồn tại.
 - Đường dẫn triển khai là ĐỀ XUẤT, tương đối từ root monorepo; không khẳng định file đã tồn tại. Repo này chỉ chứa server web, jobs nội bộ, contracts và fake-worker, không chứa runtime AI thật.
-- `screens` dùng số prototype 1-6; danh sách rỗng nghĩa là none. `prd_refs` chỉ dùng các mục đã xác minh; danh sách rỗng nghĩa là yêu cầu ADR hoặc contract mới.
+- `screens` dùng số prototype 1-7; danh sách rỗng nghĩa là none. `prd_refs` chỉ dùng các mục đã xác minh; danh sách rỗng nghĩa là yêu cầu ADR hoặc contract mới.
 - Mọi test trong kế hoạch mang nhãn `PLANNED - not implemented, not executed`. Done criteria là điều kiện nghiệm thu tương lai, không phải kết quả kiểm thử.
 
 ## Mục tiêu và nghiệm thu từng phase
@@ -25,6 +25,7 @@
 - Studio: P1-07 -> P1-08 -> P1-09 -> P1-10; P1-11 bổ sung SSE và usage và phụ thuộc P1-07/P1-08/P1-09.
 - Thương mại: P1-10 + P2-01 + P2-03 -> P2-04 -> P2-06 -> P2-07 -> P2-08; P2-05 cung cấp Shopify client, P2-09 request-push, P2-10 import/resync.
 - Vận hành: P3-01 -> P3-02 -> P3-03 -> P3-04. P3-05 gia cố bảo mật, P3-06 telemetry, P3-07 đo tải và P3-08 chốt UI.
+- Niche và bí mật: P3-01 + P3-02 -> P3-09 -> P3-10 (soạn master data, chấm điểm, build). P3-04 + P3-05 -> P3-11 (OpenBao, tự đăng nhập lại).
 - Danh sách `depends_on` trong JSON là nguồn chính xác cho đồ thị. Mỗi phase có thể bắt đầu thiết kế sớm nhưng chỉ nghiệm thu khi các prerequisite tương ứng đã đạt.
 
 ## Ánh xạ prototype
@@ -36,9 +37,10 @@
 | 3 | Listing content và analysis | P2-01, P2-02 |
 | 4 | Products, variants, dry-run, push/publish | P2-03, P2-04, P2-06, P2-07, P2-08, P2-09, P2-10 |
 | 5 | Stores, members, push/publish toggles, invite | P1-03, P1-04, P2-05 |
-| 6 | Skills, accounts và worker health | P3-01, P3-02, P3-03, P3-04, P3-06, P3-07 |
+| 6 | Skills, accounts và worker health | P3-01, P3-02, P3-03, P3-04, P3-06, P3-07, P3-11 |
+| 7 | Niche master data editor, market fit, build skill version | P3-09, P3-10 |
 
-P3-05 bảo vệ mọi screen; P3-08 kiểm tra xuyên suốt cả sáu screen.
+P3-05 bảo vệ mọi screen; P3-08 kiểm tra xuyên suốt cả bảy screen.
 
 ## Chiến lược kiểm thử
 
@@ -64,7 +66,6 @@ P3-05 bảo vệ mọi screen; P3-08 kiểm tra xuyên suốt cả sáu screen.
 
 | Chủ đề | Mặc định khi triển khai | Cần chốt |
 | --- | --- | --- |
-| Design library | Store-scoped; company-wide chỉ là đề xuất | Product owner quyết định policy flag và backfill được phê duyệt trước khi mở rộng scope |
 | Ai được tạo store | Fail closed với permission riêng, chưa bật tự tạo cho member | Product owner chọn admin-only hay nhóm có quyền và quy trình cấp owner |
 | Production host/object storage | Local Postgres 16 + MinIO cho dev/test | Host, region, TLS, backup, key management, bucket lifecycle và storageOrigins production |
 | Email thật | Invite link copy được, không yêu cầu SMTP | Nhà cung cấp mail, sender domain, delivery và quy trình reset password trước production |
@@ -77,4 +78,4 @@ File trong thư mục này: `tasks.json` (nguồn chính), `P1-foundation-studio
 node tasks/validate-tasks.mjs
 ```
 
-Script kiểm: 24-30 task, ID duy nhất, dependency tồn tại và không trỏ sang phase sau, không chu trình, mỗi task có đường dẫn, test (nhãn PLANNED) và điều kiện xong, đủ 6 màn prototype, file markdown có đủ mục của phase, không có em dash, en dash, smart quotes hoặc ellipsis. Kiểm tra này chỉ xác minh kế hoạch, không chạy test sản phẩm.
+Script kiểm: 30-40 task, ID duy nhất, dependency tồn tại và không trỏ sang phase sau, không chu trình, mỗi task có đường dẫn, test (nhãn PLANNED) và điều kiện xong, đủ 7 màn prototype, file markdown có đủ mục của phase, không có em dash, en dash, smart quotes hoặc ellipsis. Kiểm tra này chỉ xác minh kế hoạch, không chạy test sản phẩm.

@@ -51,11 +51,10 @@ Rules:
 
 ### Designs
 
-**Proposed (needs product-owner decision):** a company-wide design library, because designers serve
-several leaders and one design can be listed on many stores. **Until that is confirmed, the
-implementation default is store-scoped:** a design belongs to the store it was uploaded for, and sharing
-it with other stores is an explicit action. Switching to company-wide later is a policy flag plus a data
-backfill, not a schema change. Mockup and redesign results follow the visibility of their design.
+**Decided (product owner, 2026-09-30):** designs are **store-scoped**. A design belongs to the store
+it was uploaded for, and sharing it with other stores is an explicit action. Mockup and redesign results
+follow the visibility of their design. The **skill library is company-wide**: holders of `skill.edit`
+draft niche master data and skill versions, only holders of `skill.publish` publish (ADR 0003).
 Products, listings, pricing, credentials and pushes are always store-scoped.
 
 ### Invites and account creation
@@ -83,4 +82,4 @@ quotas on this data.
 
 - Push rights follow the store owner, not the company hierarchy, which matches how stores are run.
 - Admins can see and fix everything except pushing on a store's behalf, unless the owner grants it.
-- Open question for the product owner: shared or store-scoped design library (see "Designs").
+- Design library scope is closed: store-scoped designs, company-wide skills (see "Designs", ADR 0003).

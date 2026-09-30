@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const PLANNED = 'PLANNED - not implemented, not executed';
+const SCREENS = 7; // design/wireframes/index.html: 7 nav screens
 const errors = [];
 const fail = (m) => errors.push(m);
 
@@ -14,7 +15,7 @@ const { tasks } = JSON.parse(readFileSync(join(dir, 'tasks.json'), 'utf8'));
 const ids = tasks.map((t) => t.id);
 const byId = new Map(tasks.map((t) => [t.id, t]));
 
-if (tasks.length < 24 || tasks.length > 30) fail(`task count ${tasks.length} outside 24-30`);
+if (tasks.length < 30 || tasks.length > 40) fail(`task count ${tasks.length} outside 30-40`);
 if (new Set(ids).size !== ids.length) fail('duplicate task ids');
 
 for (const t of tasks) {
@@ -28,7 +29,7 @@ for (const t of tasks) {
     if (ts.status !== PLANNED) fail(`${t.id}: test ${ts.file} not labelled PLANNED`);
     if (!ts.scenarios?.length) fail(`${t.id}: test ${ts.file} has no scenarios`);
   }
-  for (const s of t.screens) if (!Number.isInteger(s) || s < 1 || s > 6) fail(`${t.id}: bad screen ${s}`);
+  for (const s of t.screens) if (!Number.isInteger(s) || s < 1 || s > SCREENS) fail(`${t.id}: bad screen ${s}`);
   for (const d of t.depends_on) {
     if (!byId.has(d)) fail(`${t.id}: missing dependency ${d}`);
     else if (d.slice(0, 2) > t.id.slice(0, 2)) fail(`${t.id}: depends on later phase ${d}`);
@@ -47,7 +48,7 @@ const visit = (id, stack) => {
 for (const id of ids) visit(id, []);
 
 // Every screen of the prototype must be covered by at least one task.
-for (let s = 1; s <= 6; s++) if (!tasks.some((t) => t.screens.includes(s))) fail(`screen ${s} not covered`);
+for (let s = 1; s <= SCREENS; s++) if (!tasks.some((t) => t.screens.includes(s))) fail(`screen ${s} not covered`);
 
 // Markdown files must list every task of their phase, and no smart punctuation anywhere.
 const banned = /[\u2014\u2013\u201C\u201D\u2018\u2019\u2026]/;
@@ -65,4 +66,4 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(`OK ${tasks.length} task (P1 ${count('P1')}, P2 ${count('P2')}, P3 ${count('P3')}), ` +
-  `${tasks.reduce((n, t) => n + t.tests.length, 0)} file test dự kiến, không chu trình, đủ 6 màn.`);
+  `${tasks.reduce((n, t) => n + t.tests.length, 0)} file test dự kiến, không chu trình, đủ ${SCREENS} màn.`);

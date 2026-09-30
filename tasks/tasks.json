@@ -5,6 +5,7 @@
   "sources": [
     "docs/adr/0001-stack.md",
     "docs/adr/0002-access-model.md",
+    "docs/adr/0003-niche-skill-builder.md",
     "packages/contracts/README.md",
     "Downloads/prd-rebuild.md (reference only)"
   ],
@@ -1324,7 +1325,8 @@
         3,
         4,
         5,
-        6
+        6,
+        7
       ],
       "prd_refs": [
         "§11.2"
@@ -1354,6 +1356,140 @@
       ],
       "done": [
         "Checklist UI đạt ở cả 3 kích thước"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "P3-09",
+      "phase": "P3",
+      "title": "Màn soạn niche master data theo schema 2.0",
+      "owner": "web",
+      "depends_on": [
+        "P3-01",
+        "P3-02"
+      ],
+      "screens": [
+        7
+      ],
+      "prd_refs": [],
+      "objective": "Form 5 bước soạn đủ 17 section của schema 2.0; đếm tối thiểu theo từng field như generator, style_variants đúng 4; lỗi hiển thị cùng định dạng validator và nút Sửa đưa focus về field; trạng thái dữ liệu curated-draft, researched, validated; bản nháp lưu tự động theo skill.edit.",
+      "paths": [
+        "packages/core/src/skills/niche-schema.ts",
+        "packages/core/src/skills/niche-rules.ts",
+        "apps/web/src/app/(app)/skills/niche/[id]/page.tsx",
+        "apps/web/src/features/skills/niche-editor/"
+      ],
+      "tests": [
+        {
+          "file": "packages/core/test/skills/niche-schema.test.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "occasions 6 bản ghi: lỗi requires at least 8 records; found 6",
+            "style_variants 5 bản ghi: lỗi requires exactly 4",
+            "qa_rules.max_colors 13: lỗi expected an integer from 1 to 12",
+            "Bảng màu chứa #00FF00: bị từ chối",
+            "Dữ liệu mẫu teacher-example-data.json: hợp lệ"
+          ]
+        },
+        {
+          "file": "apps/web/test/e2e/niche-editor.spec.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "Nút Sửa nhảy đúng bước và focus field lỗi",
+            "Còn lỗi thì nút build bị khóa",
+            "Không tràn ngang ở 1024, 760, 390px"
+          ]
+        }
+      ],
+      "done": [
+        "Luật tối thiểu trong UI và validator Python cho cùng kết quả trên bộ dữ liệu mẫu"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "P3-10",
+      "phase": "P3",
+      "title": "Chấm độ hợp thị trường và build skill version từ master data",
+      "owner": "both",
+      "depends_on": [
+        "P3-09"
+      ],
+      "screens": [
+        7
+      ],
+      "prd_refs": [],
+      "objective": "Chấm 6 tiêu chí 1 đến 5 (rõ ý, hợp làm quà, cảm xúc, khác biệt, làm thành bộ, an toàn IP), tối đa 30; 25 trở lên làm, 21 chỉnh, 16 làm lại, 15 trở xuống thay; IP dưới 4 luôn chặn. Build gọi generator như job worker có timeout, ra skill_version bất biến, chưa publish.",
+      "paths": [
+        "packages/core/src/skills/market-fit.ts",
+        "apps/jobs/src/skills/build-niche-skill.ts",
+        "packages/contracts/schemas/niche-master-data.schema.json"
+      ],
+      "tests": [
+        {
+          "file": "packages/core/test/skills/market-fit.test.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "26 điểm, IP 5: Làm",
+            "24 điểm: Chỉnh",
+            "IP 3 dù tổng 27: Chặn",
+            "15 điểm: Thay"
+          ]
+        },
+        {
+          "file": "apps/jobs/test/skills/build-niche-skill.test.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "Generator quá thời gian: job lỗi rõ, không tạo version",
+            "Build thành công: version mới trạng thái draft, không tự publish"
+          ]
+        }
+      ],
+      "done": [
+        "Mọi skill version build từ master data truy được về bản master data và điểm chấm"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "P3-11",
+      "phase": "P3",
+      "title": "Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại",
+      "owner": "both",
+      "depends_on": [
+        "P3-04",
+        "P3-05"
+      ],
+      "screens": [
+        6
+      ],
+      "prd_refs": [],
+      "objective": "Lưu thông tin đăng nhập tài khoản subscription (ChatGPT, Claude, Grok, Gemini và dịch vụ khác) trong OpenBao KV v2, TOTP qua secrets engine totp. Worker xác thực AppRole, nhận secret qua response wrapping dùng một lần. Khi account_state về session_expired, worker tự đăng nhập lại; captcha hoặc xác minh thiết bị thì chuyển trạng thái chờ người và báo admin. Webapp chỉ thấy metadata, không bao giờ thấy giá trị bí mật.",
+      "paths": [
+        "infra/openbao/policies/worker-accounts.hcl",
+        "infra/openbao/docker-compose.openbao.yml",
+        "packages/contracts/schemas/account-credential-ref.schema.json",
+        "apps/web/src/features/accounts/credential-status.tsx"
+      ],
+      "tests": [
+        {
+          "file": "packages/core/test/accounts/credential-ref.test.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "API webapp trả metadata tài khoản không chứa giá trị bí mật",
+            "Wrap token dùng lần hai: bị từ chối",
+            "Policy worker không đọc được path của store khác"
+          ]
+        },
+        {
+          "file": "apps/web/test/e2e/account-relogin.spec.ts",
+          "status": "PLANNED - not implemented, not executed",
+          "scenarios": [
+            "session_expired: worker báo đăng nhập lại thành công, trạng thái về available",
+            "Gặp captcha: trạng thái chờ người, admin nhận cảnh báo"
+          ]
+        }
+      ],
+      "done": [
+        "Không có mật khẩu, cookie hoặc seed TOTP nào nằm trong Postgres, log hay payload job"
       ],
       "status": "planned"
     }
