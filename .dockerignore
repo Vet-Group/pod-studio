@@ -1,0 +1,22 @@
+# Docker build context for ops/docker/Dockerfile (context = repository root).
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+.git
+.github
+.omh
+.omx
+.omo
+.vscode
+.idea
+**/.env
+**/.env.*
+!**/.env.example
+playwright-report
+test-results
+design
+docs
+ops/prod/backups

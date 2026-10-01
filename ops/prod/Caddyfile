@@ -1,0 +1,42 @@
+# TLS termination and routing for POD Studio (ops/prod/docker-compose.yml).
+# Caddy obtains and renews the certificate for APP_DOMAIN automatically.
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Presigned object URLs (path-style): /<bucket>/<key>?X-Amz-...
+	# The Host header must stay APP_DOMAIN because it is part of the SigV4 signature.
+	@objects path /{$S3_BUCKET}/*
+	handle @objects {
+		request_body {
+			max_size 64MB
+		}
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		request_body {
+			max_size 16MB
+		}
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
