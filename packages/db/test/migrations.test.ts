@@ -80,7 +80,7 @@ describe('migrations', () => {
     const d = await migratedDatabase();
     const rows = await d.sql<{ table_name: string }[]>`
       select table_name from information_schema.tables where table_schema = 'public' order by 1`;
-    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'asset_uploads', 'assets', 'audit_log', 'design_shares', 'designs', 'invites', 'sessions', 'store_members', 'stores', 'users', 'verifications']);
+    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'asset_uploads', 'assets', 'audit_log', 'design_shares', 'designs', 'invites', 'pricing_rules', 'product_types', 'sessions', 'store_members', 'stores', 'users', 'verifications']);
   });
 });
 
@@ -143,7 +143,7 @@ describe('schema conventions (PRD §4)', () => {
       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
       where c.contype = 'p' and c.connamespace = 'public'::regnamespace
       group by 1 order by 1`;
-    expect(rows).toHaveLength(12);
+    expect(rows).toHaveLength(14);
     for (const row of rows) expect({ table: row.table_name, columns: row.columns, types: row.types }).toEqual({ table: row.table_name, columns: 'id', types: 'text' });
   });
 
@@ -162,7 +162,7 @@ describe('schema conventions (PRD §4)', () => {
       select table_name || '.' || column_name as col, column_default, is_nullable from information_schema.columns
       where table_schema = 'public' and column_name in ('created_at', 'updated_at')`;
     // invites is append-mostly (accepted_at / revoked_at record changes), so it only has created_at.
-    expect(rows.length).toBe(19);
+    expect(rows.length).toBe(23);
     for (const row of rows) expect({ col: row.col, d: row.column_default, n: row.is_nullable }).toEqual({ col: row.col, d: 'now()', n: 'NO' });
   });
 });

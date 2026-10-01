@@ -5,3 +5,4 @@ export * from './invites';
 export * from './store-members';
 export * from './assets';
 export * from './designs';
+export * from './catalog';

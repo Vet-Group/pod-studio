@@ -43,6 +43,13 @@
       "when": 1790893925758,
       "tag": "0005_library_owner_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790895546699,
+      "tag": "0006_catalog",
+      "breakpoints": true
     }
   ]
 }

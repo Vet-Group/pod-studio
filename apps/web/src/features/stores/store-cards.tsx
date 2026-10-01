@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { STORE_ROLE_LABELS, type StoreSummary } from '@pod-studio/core';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 /** `.storecards` / `.storecard` from the wireframe; each card opens that store's members. */
 function viewerRole(store: StoreSummary): string {
@@ -18,7 +19,7 @@ export function StoreCards({ stores, currentId }: { stores: StoreSummary[]; curr
               href={`/stores/${store.id}/members`}
               aria-current={current ? 'page' : undefined}
               className={cn(
-                'border-line bg-paper hover:bg-soft block h-full rounded-[7px] border p-5 transition-colors max-lg:p-3.5',
+                'border-line bg-paper hover:bg-soft block rounded-[7px] border p-5 transition-colors max-lg:p-3.5',
                 'max-md:grid max-md:grid-cols-[36px_1fr] max-md:gap-x-3',
                 current && 'border-teal bg-soft',
               )}
@@ -40,6 +41,9 @@ export function StoreCards({ stores, currentId }: { stores: StoreSummary[]; curr
                 {store.memberCount} {store.memberCount === 1 ? 'member' : 'members'} · {viewerRole(store)}
               </p>
             </Link>
+            <Button asChild className="mt-2 min-h-11 w-full">
+              <Link href={`/stores/${store.id}/catalog`}>Catalog</Link>
+            </Button>
           </li>
         );
       })}
