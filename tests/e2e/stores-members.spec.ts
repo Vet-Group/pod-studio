@@ -154,7 +154,7 @@ test.describe('a store owner', () => {
 
     const newcomerId = await userIdOf(newcomer);
     expect(newcomerId).toBeTruthy();
-    expect(await membershipOf(storeId, newcomerId!)).toEqual({ role: 'designer', permissions: ['store.view'] });
+    expect(await membershipOf(storeId, newcomerId!)).toEqual({ role: 'designer', permissions: ['store.view', 'design.upload'] });
     const accepted = (await storeAudit(storeId)).at(-1);
     expect(accepted).toMatchObject({ action: 'invite.accept', actorUserId: newcomerId });
   });
@@ -198,7 +198,7 @@ test.describe('a store owner', () => {
     await page.getByLabel('Store role for Sam Seller').selectOption({ label: 'Designer' });
     await expect(page.getByLabel('Edit products for Sam Seller')).not.toBeChecked();
     await expect(page.getByLabel('Store role for Sam Seller')).toHaveValue('designer');
-    await expect.poll(() => membershipOf(storeId, seller.userId)).toEqual({ role: 'designer', permissions: ['store.view'] });
+    await expect.poll(() => membershipOf(storeId, seller.userId)).toEqual({ role: 'designer', permissions: ['store.view', 'design.upload'] });
 
     // Then single permissions can be switched on and off on top of the preset. The boxes are
     // controlled by the saved state, so click and wait for the server round trip instead of check().
@@ -206,13 +206,13 @@ test.describe('a store owner', () => {
     await expect(page.getByLabel('Draft push for Sam Seller')).toBeChecked();
     await expect
       .poll(() => membershipOf(storeId, seller.userId))
-      .toEqual({ role: 'designer', permissions: ['store.view', 'product.push'] });
+      .toEqual({ role: 'designer', permissions: ['store.view', 'product.push', 'design.upload'] });
 
     await page.reload();
     await expect(page.getByLabel('Draft push for Sam Seller')).toBeChecked();
     await page.getByLabel('Draft push for Sam Seller').click();
     await expect(page.getByLabel('Draft push for Sam Seller')).not.toBeChecked();
-    await expect.poll(() => membershipOf(storeId, seller.userId)).toEqual({ role: 'designer', permissions: ['store.view'] });
+    await expect.poll(() => membershipOf(storeId, seller.userId)).toEqual({ role: 'designer', permissions: ['store.view', 'design.upload'] });
 
     expect(await auditActions(storeId)).toEqual([
       'store.create',

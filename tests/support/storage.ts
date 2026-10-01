@@ -48,9 +48,10 @@ export function s3Client(settings: StorageSettings = storageSettings()): S3Clien
   });
 }
 
-export async function createTestBucket(settings: StorageSettings = storageSettings()): Promise<TestBucket> {
+export async function createTestBucket(settings: StorageSettings = storageSettings(), requestedName?: string): Promise<TestBucket> {
   const worker = (process.env.VITEST_POOL_ID ?? '0').replace(/[^a-z0-9]/gi, '').toLowerCase() || '0';
-  const name = `pod-w${worker}-${randomBytes(4).toString('hex')}-test`;
+  const name = requestedName ?? `pod-w${worker}-${randomBytes(4).toString('hex')}-test`;
+  if (!/^pod-[a-z0-9-]+-test$/.test(name) || name.length > 63) throw new Error('Refusing a non-test bucket name.');
   const client = s3Client(settings);
   await client.send(new CreateBucketCommand({ Bucket: name }));
   created.add(name);

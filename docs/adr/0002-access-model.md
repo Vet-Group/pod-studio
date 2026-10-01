@@ -57,6 +57,15 @@ follow the visibility of their design. The **skill library is company-wide**: ho
 draft niche master data and skill versions, only holders of `skill.publish` publish (ADR 0003).
 Products, listings, pricing, credentials and pushes are always store-scoped.
 
+P1-05 makes library permissions explicit in store memberships: `design.upload` defaults to owner,
+co-leader and designer; `design.share` defaults to owner and co-leader. Reading uses `store.view`.
+Neither library write permission is an implicit global-admin permission. Sharing requires
+`design.share` in the source and `design.upload` in the destination and writes an atomic audit row.
+A recipient can read the shared design but cannot re-share it on behalf of the source store.
+These store grants are the implementation of design upload access; no global upload grant may
+bypass the destination store check. The upgrade grants these permissions to existing owners only,
+with system audit records; other memberships retain their exact grants until an owner changes them.
+
 ### Invites and account creation
 
 - Invite = `invites (email, token_hash, global_role, store_id?, store_role?, permissions[], invited_by,

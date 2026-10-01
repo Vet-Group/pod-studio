@@ -12,7 +12,7 @@ export {
   type StorePermission,
   type StoreRole,
 } from './permissions';
-export { can, effectivePermissions, findMembership, type Principal, type StoreMembership, type StoreScope } from './can';
+export { assertCan, can, effectivePermissions, findMembership, type Principal, type StoreMembership, type StoreScope } from './can';
 export {
   addMember,
   createStore,

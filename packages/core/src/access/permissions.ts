@@ -12,6 +12,8 @@ export const STORE_PERMISSIONS = [
   'product.publish',
   'store.members',
   'store.settings',
+  'design.upload',
+  'design.share',
 ] as const;
 export type StorePermission = (typeof STORE_PERMISSIONS)[number];
 
@@ -21,10 +23,10 @@ export type StorePermission = (typeof STORE_PERMISSIONS)[number];
  */
 export const ROLE_PRESETS: Record<StoreRole, readonly StorePermission[]> = {
   owner: STORE_PERMISSIONS,
-  co_leader: ['store.view', 'analysis.run', 'product.edit', 'content.generate', 'product.push', 'store.members'],
+  co_leader: ['store.view', 'analysis.run', 'product.edit', 'content.generate', 'product.push', 'store.members', 'design.upload', 'design.share'],
   seller_support: ['store.view', 'analysis.run', 'product.edit', 'content.generate'],
   seller: ['store.view', 'analysis.run', 'product.edit', 'content.generate'],
-  designer: ['store.view'],
+  designer: ['store.view', 'design.upload'],
   viewer: ['store.view'],
 };
 
@@ -66,6 +68,8 @@ export const STORE_PERMISSION_LABELS: Record<StorePermission, string> = {
   'product.publish': 'Shopify publish',
   'store.members': 'Manage members',
   'store.settings': 'Store settings',
+  'design.upload': 'Upload designs',
+  'design.share': 'Share designs',
 };
 
 export function isStoreRole(value: unknown): value is StoreRole {

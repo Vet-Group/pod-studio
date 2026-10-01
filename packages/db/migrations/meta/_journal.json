@@ -29,6 +29,20 @@
       "when": 1790870821214,
       "tag": "0003_store_members",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790892442085,
+      "tag": "0004_assets_designs",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790893925758,
+      "tag": "0005_library_owner_permissions",
+      "breakpoints": true
     }
   ]
 }

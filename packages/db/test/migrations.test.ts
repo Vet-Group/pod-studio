@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { createTestDatabase, type TestDatabase } from '../../../tests/support/db';
 import { createDatabase } from '../src/client';
 import { MIGRATIONS_FOLDER, migrateDatabase } from '../src/migrate';
-import { auditLog, stores, users } from '../src/schema';
+import { auditLog, storeMembers, stores, users } from '../src/schema';
 
 const cleanup: Array<() => Promise<void> | void> = [];
 afterEach(async () => {
@@ -80,7 +80,41 @@ describe('migrations', () => {
     const d = await migratedDatabase();
     const rows = await d.sql<{ table_name: string }[]>`
       select table_name from information_schema.tables where table_schema = 'public' order by 1`;
-    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'audit_log', 'invites', 'sessions', 'store_members', 'stores', 'users', 'verifications']);
+    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'asset_uploads', 'assets', 'audit_log', 'design_shares', 'designs', 'invites', 'sessions', 'store_members', 'stores', 'users', 'verifications']);
+  });
+});
+
+describe('library permission upgrade', () => {
+  it('grants existing owners library permissions with an audit row and preserves other grants', async () => {
+    const d = await emptyDatabase();
+    const folder = mkdtempSync(join(tmpdir(), 'pod-legacy-migrations-'));
+    cleanup.push(() => rmSync(folder, { recursive: true, force: true }));
+    cpSync(MIGRATIONS_FOLDER, folder, { recursive: true });
+    const legacyJournal = JSON.parse(readFileSync(join(folder, 'meta', '_journal.json'), 'utf8'));
+    legacyJournal.entries = legacyJournal.entries.filter((entry: { idx: number }) => entry.idx < 4);
+    writeFileSync(join(folder, 'meta', '_journal.json'), JSON.stringify(legacyJournal));
+    await migrateDatabase(d.connection, { migrationsFolder: folder });
+    const handle = createDatabase(d.connection);
+    cleanup.push(() => handle.close());
+    const db = handle.db;
+    await db.insert(users).values([
+      { id: 'legacy_owner_001', email: 'legacy-owner@example.test', name: 'Owner' },
+      { id: 'legacy_viewer_001', email: 'legacy-viewer@example.test', name: 'Viewer' },
+    ]);
+    await db.insert(stores).values({ id: 'legacy_store_001', name: 'Legacy store', domain: 'legacy.myshopify.com' });
+    await db.insert(storeMembers).values([
+      { id: 'legacy_member_001', storeId: 'legacy_store_001', userId: 'legacy_owner_001', role: 'owner', permissions: ['store.view', 'store.members'] },
+      { id: 'legacy_member_002', storeId: 'legacy_store_001', userId: 'legacy_viewer_001', role: 'viewer', permissions: ['store.view'] },
+    ]);
+    await migrateDatabase(d.connection);
+    const members = await db.select().from(storeMembers).orderBy(storeMembers.id);
+    expect(members[0]?.permissions).toEqual(['store.view', 'store.members', 'design.upload', 'design.share']);
+    expect(members[1]?.permissions).toEqual(['store.view']);
+    const logs = await db.select().from(auditLog);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ actorKind: 'system', action: 'store.member.library.upgrade', storeId: 'legacy_store_001', targetId: 'legacy_member_001' });
+    await migrateDatabase(d.connection);
+    expect(await db.select().from(auditLog)).toHaveLength(1);
   });
 });
 
@@ -109,7 +143,7 @@ describe('schema conventions (PRD §4)', () => {
       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
       where c.contype = 'p' and c.connamespace = 'public'::regnamespace
       group by 1 order by 1`;
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(12);
     for (const row of rows) expect({ table: row.table_name, columns: row.columns, types: row.types }).toEqual({ table: row.table_name, columns: 'id', types: 'text' });
   });
 
@@ -128,7 +162,7 @@ describe('schema conventions (PRD §4)', () => {
       select table_name || '.' || column_name as col, column_default, is_nullable from information_schema.columns
       where table_schema = 'public' and column_name in ('created_at', 'updated_at')`;
     // invites is append-mostly (accepted_at / revoked_at record changes), so it only has created_at.
-    expect(rows.length).toBe(14);
+    expect(rows.length).toBe(19);
     for (const row of rows) expect({ col: row.col, d: row.column_default, n: row.is_nullable }).toEqual({ col: row.col, d: 'now()', n: 'NO' });
   });
 });

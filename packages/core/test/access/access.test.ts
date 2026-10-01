@@ -167,7 +167,7 @@ describe('member changes (no escalation)', () => {
   it('adds an existing account with its preset and refuses duplicates', async () => {
     const db = await harness();
     await addMember(db, leader, STORE, { email: 'Outsider@Example.test', role: 'designer' });
-    expect(await memberRow(db, outsider.userId)).toMatchObject({ role: 'designer', permissions: ['store.view'], grantedBy: leader.userId });
+    expect(await memberRow(db, outsider.userId)).toMatchObject({ role: 'designer', permissions: ['store.view', 'design.upload'], grantedBy: leader.userId });
     await expectAuthError(addMember(db, leader, STORE, { email: 'outsider@example.test', role: 'viewer' }), 'ALREADY_MEMBER');
     await expectAuthError(addMember(db, leader, STORE, { email: 'nobody@example.test', role: 'viewer' }), 'NOT_FOUND');
     expect(await auditActions(db)).toEqual(['store.member.add']);
@@ -347,7 +347,7 @@ describe('what the members screen offers (mirrors the write checks)', () => {
     const db = await harness();
     expect((await listMembers(db, owner, STORE)).viewer.inviteRoles).toEqual(['co_leader', 'seller_support', 'seller', 'designer', 'viewer']);
     expect((await listMembers(db, leader, STORE)).viewer.inviteRoles).toEqual(['co_leader', 'seller_support', 'seller', 'designer', 'viewer']);
-    expect((await listMembers(db, admin, STORE)).viewer.inviteRoles).toEqual(['seller_support', 'seller', 'designer', 'viewer']);
+    expect((await listMembers(db, admin, STORE)).viewer.inviteRoles).toEqual(['seller_support', 'seller', 'viewer']);
     expect((await listMembers(db, seller, STORE)).viewer).toMatchObject({ canManage: false, inviteRoles: [] });
   });
 });
