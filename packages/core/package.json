@@ -1,0 +1,22 @@
+{
+  "name": "@pod-studio/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pod-studio/db": "workspace:*",
+    "better-auth": "1.7.6"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "postgres": "3.4.9",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}

@@ -80,7 +80,7 @@ describe('migrations', () => {
     const d = await migratedDatabase();
     const rows = await d.sql<{ table_name: string }[]>`
       select table_name from information_schema.tables where table_schema = 'public' order by 1`;
-    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'audit_log', 'sessions', 'stores', 'users', 'verifications']);
+    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'audit_log', 'invites', 'sessions', 'stores', 'users', 'verifications']);
   });
 });
 
@@ -109,7 +109,7 @@ describe('schema conventions (PRD §4)', () => {
       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
       where c.contype = 'p' and c.connamespace = 'public'::regnamespace
       group by 1 order by 1`;
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
     for (const row of rows) expect({ table: row.table_name, columns: row.columns, types: row.types }).toEqual({ table: row.table_name, columns: 'id', types: 'text' });
   });
 
@@ -127,7 +127,8 @@ describe('schema conventions (PRD §4)', () => {
     const rows = await d.sql<{ col: string; column_default: string | null; is_nullable: string }[]>`
       select table_name || '.' || column_name as col, column_default, is_nullable from information_schema.columns
       where table_schema = 'public' and column_name in ('created_at', 'updated_at')`;
-    expect(rows.length).toBe(11);
+    // invites is append-mostly (accepted_at / revoked_at record changes), so it only has created_at.
+    expect(rows.length).toBe(12);
     for (const row of rows) expect({ col: row.col, d: row.column_default, n: row.is_nullable }).toEqual({ col: row.col, d: 'now()', n: 'NO' });
   });
 });
@@ -174,6 +175,27 @@ describe('tables', () => {
     await d.sql`delete from users where id = 'user_a_001'`;
     const [row] = await d.sql<{ s: number; a: number }[]>`select (select count(*)::int from sessions) as s, (select count(*)::int from accounts) as a`;
     expect(row).toEqual({ s: 0, a: 0 });
+  });
+
+  it('defaults must_change_password to false for new users', async () => {
+    const d = await migratedDatabase();
+    await d.sql`insert into users (id, name, email) values ('user_a_001', 'A', 'a@example.test')`;
+    const [row] = await d.sql<{ must: boolean }[]>`select must_change_password as must from users`;
+    expect(row).toEqual({ must: false });
+  });
+
+  it('keeps invite token hashes unique and invites tied to their inviter', async () => {
+    const d = await migratedDatabase();
+    await d.sql`insert into users (id, name, email) values ('user_a_001', 'A', 'a@example.test')`;
+    await d.sql`insert into invites (id, email, token_hash, invited_by, expires_at)
+      values ('invite_a_01', 'b@example.test', 'hash-1', 'user_a_001', now() + interval '7 days')`;
+    const [row] = await d.sql<{ role: string; permissions: string[] }[]>`select global_role as role, permissions from invites`;
+    expect(row).toEqual({ role: 'member', permissions: [] });
+    await expect(
+      d.sql`insert into invites (id, email, token_hash, invited_by, expires_at)
+        values ('invite_b_01', 'c@example.test', 'hash-1', 'user_a_001', now() + interval '7 days')`,
+    ).rejects.toMatchObject({ code: '23505' });
+    await expect(d.sql`delete from users where id = 'user_a_001'`).rejects.toMatchObject({ code: '23503' });
   });
 });
 
