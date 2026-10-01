@@ -4,7 +4,7 @@
  */
 export default function AuthLayout({ children }: LayoutProps<'/'>) {
   return (
-    <div className="flex min-h-dvh flex-col items-center px-[18px] pt-[12vh] pb-12 max-md:pt-10">
+    <div className="flex min-h-dvh flex-col items-center px-[18px] pt-[clamp(40px,8vh,96px)] pb-12">
       <div className="w-full max-w-[400px]">
         <div className="mb-9 flex items-center gap-2.5 text-[20px] tracking-[-0.8px]">
           <span

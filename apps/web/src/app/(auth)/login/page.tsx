@@ -9,7 +9,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   return (
     <>
       <header className="mb-7">
-        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px]">Sign in</h1>
+        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px] text-balance">Sign in</h1>
         <p className="text-muted mt-2.5 text-[13px] text-pretty">
           Accounts are created by an admin or through an invite link. There is no public sign-up.
         </p>
