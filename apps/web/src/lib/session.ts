@@ -10,7 +10,10 @@ export type CurrentSession = NonNullable<Awaited<ReturnType<ReturnType<typeof ge
 
 /** The signed-in session for this request, or null. Cached per request. */
 export const getCurrentSession = cache(async (): Promise<CurrentSession | null> => {
-  return getAuth().api.getSession({ headers: await headers() });
+  // Read the request headers first: during `next build` this marks the route as dynamic before
+  // getAuth() would need runtime env vars (DATABASE_URL, BETTER_AUTH_SECRET) that a build lacks.
+  const requestHeaders = await headers();
+  return getAuth().api.getSession({ headers: requestHeaders });
 });
 
 /**

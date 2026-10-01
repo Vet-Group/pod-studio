@@ -1,0 +1,140 @@
+# POD Studio production stack: one host, Docker Compose, Caddy for TLS.
+#
+#   cp ops/prod/.env.example ops/prod/.env   # fill in every value, chmod 600
+#   docker compose -f ops/prod/docker-compose.yml --env-file ops/prod/.env up -d --wait
+#
+# Only Caddy publishes ports. Postgres and MinIO stay on the internal network; the app reaches them
+# by service name. Browsers reach MinIO only through Caddy, path-style on the app's own origin
+# (https://APP_DOMAIN/<bucket>/<key>), which is what presigned URLs point at. See docs/deploy.md.
+name: pod-studio-prod
+
+x-app-env: &app-env
+  NODE_ENV: production
+  # Standard libpq variables (postgres.js reads them); no URL, so passwords need no escaping.
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGUSER: ${POSTGRES_USER:?set POSTGRES_USER}
+  PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+  PGDATABASE: ${POSTGRES_DB:?set POSTGRES_DB}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+  BETTER_AUTH_URL: https://${APP_DOMAIN}
+  BETTER_AUTH_TRUSTED_ORIGINS: https://${APP_DOMAIN}
+  S3_ENDPOINT: http://minio:9000
+  S3_PUBLIC_ENDPOINT: https://${APP_DOMAIN}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+  S3_BUCKET: ${S3_BUCKET:-pod-studio}
+  SHOPIFY_ENCRYPTION_KEYS: ${SHOPIFY_ENCRYPTION_KEYS:-}
+  SHOPIFY_ENCRYPTION_ACTIVE_VERSION: ${SHOPIFY_ENCRYPTION_ACTIVE_VERSION:-v1}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  minio:
+    # Same server build as ops/local (the official minio/minio image is no longer publicly pullable).
+    image: chainguard/minio@sha256:4692462f35d97d7e82c30371d82f057703c5d9489bcae726010594c812f2d285
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER: "off"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [internal]
+
+  # One-shot: creates the bucket and a least-privilege app user. Idempotent; reruns on every `up`.
+  minio-init:
+    image: chainguard/minio@sha256:4692462f35d97d7e82c30371d82f057703c5d9489bcae726010594c812f2d285
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_BUCKET: ${S3_BUCKET:-pod-studio}
+    entrypoint: ["sh", "/init/minio-init.sh"]
+    volumes:
+      - ./minio-init.sh:/init/minio-init.sh:ro
+    restart: "no"
+    networks: [internal]
+
+  # One-shot: applies pending migrations (advisory-locked, refuses edited or out-of-order files).
+  migrate:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: *app-env
+    command: ["node", "tools/migrate.mjs"]
+    restart: "no"
+    networks: [internal]
+
+  web:
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    environment: *app-env
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health/ready"]
+      interval: 10s
+      timeout: 3s
+      start_period: 20s
+      retries: 5
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      S3_BUCKET: ${S3_BUCKET:-pod-studio}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      # Same port inside and out, so a non-default HTTPS_PORT (APP_DOMAIN=host:port) keeps working.
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}"
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal]
+
+volumes:
+  pg-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
