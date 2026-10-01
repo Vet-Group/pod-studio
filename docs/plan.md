@@ -29,6 +29,7 @@ All artifacts are in the repo root (`.`):
 | Push permission | Scoped by **store**, not company. Each store has exactly 1 owner (leader). Only the owner and people granted permission by the owner can push or publish. A leader can own multiple stores. System admins do **not** automatically have push permission. |
 | Quotas, budgets | **Not in scope.** Only record `usage_events` (store, requester, store owner at that time) for future cost allocation by store or leader. |
 | Stack | Next.js + React + TypeScript + Tailwind v4 + shadcn/ui + Drizzle + Postgres + better-auth + pg-boss. Details and rationale: ADR 0001. |
+| Screen priority | **Desktop first** (1280-1440 px): every screen is designed, built and reviewed at desktop width. Phones only keep a safety net until P3-08: no horizontal overflow at 390 px (E2E `mobile` project) and sign-in, invite and password pages usable in one column. Decided 2026-10-01. |
 | Preact Signals | Not adopted yet. Rationale in §3. |
 | Library scope | Designs, mockups, and redesigns are **store-scoped**; sharing with another store is a separate action. The **skill library is shared company-wide**: anyone with `skill.edit` can author drafts, only those with `skill.publish` can publish. |
 | Niche master data | Edit in the webapp using the generator's schema 2.0, build immutable skill versions, do not publish automatically. Details in §7b, ADR 0003. |
