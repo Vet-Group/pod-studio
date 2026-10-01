@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatPrice, isAuthError, listCatalog, listStores } from '@pod-studio/core';
+import { formatPrice, isAuthError, listCatalog, listShopifyImports, listStores } from '@pod-studio/core';
 import { PageHead } from '@/components/page-head';
 import { Button } from '@/components/ui/button';
 import { CatalogEditor } from '@/features/catalog/catalog-editor';
@@ -21,6 +21,7 @@ export default async function CatalogPage({ params }: PageProps<'/stores/[storeI
   });
   const store = (await listStores(db, principal)).find((store) => store.id === storeId);
   if (!store) notFound();
+  const imports = await listShopifyImports(db, principal, storeId);
   const types = data.types.map((type) => ({
     id: type.id,
     name: type.name,
@@ -52,7 +53,7 @@ export default async function CatalogPage({ params }: PageProps<'/stores/[storeI
       >
         Configure exact variants and row-level market exclusions for this store. Nothing is sent to Shopify.
       </PageHead>
-      <CatalogEditor storeId={storeId} initialTypes={types} canEdit={data.canEdit} />
+      <CatalogEditor storeId={storeId} initialTypes={types} canEdit={data.canEdit} imports={imports} />
     </div>
   );
 }

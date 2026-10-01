@@ -9,4 +9,6 @@ export * from './catalog';
 export * from './generation/scheduler';
 export * from './generation/transitions';
 export * from './generation/error-classes';
+export * from './catalog/resync';
+export * from './shopify/import';
 export { writeAudit, type AuditEntry, type Executor, type Transaction } from './audit/log';

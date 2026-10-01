@@ -64,6 +64,13 @@
       "when": 1790899524760,
       "tag": "0008_generation_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790901714287,
+      "tag": "0009_products_import",
+      "breakpoints": true
     }
   ]
 }

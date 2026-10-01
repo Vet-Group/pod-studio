@@ -80,7 +80,7 @@ describe('migrations', () => {
     const d = await migratedDatabase();
     const rows = await d.sql<{ table_name: string }[]>`
       select table_name from information_schema.tables where table_schema = 'public' order by 1`;
-    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'asset_uploads', 'assets', 'audit_log', 'design_shares', 'designs', 'generation_jobs', 'generation_requester_turns', 'generation_store_turns', 'invites', 'pricing_rules', 'product_types', 'provider_accounts', 'sessions', 'shopify_connections', 'store_members', 'stores', 'users', 'verifications', 'workers']);
+    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'asset_uploads', 'assets', 'audit_log', 'design_shares', 'designs', 'generation_jobs', 'generation_requester_turns', 'generation_store_turns', 'import_runs', 'invites', 'pricing_rules', 'product_types', 'products', 'provider_accounts', 'sessions', 'shopify_connections', 'store_members', 'store_products', 'stores', 'users', 'variants', 'verifications', 'workers']);
   });
 });
 
@@ -143,7 +143,7 @@ describe('schema conventions (PRD §4)', () => {
       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
       where c.contype = 'p' and c.connamespace = 'public'::regnamespace
       group by 1 order by 1`;
-    expect(rows).toHaveLength(20);
+    expect(rows).toHaveLength(24);
     for (const row of rows) expect({ table: row.table_name, columns: row.columns, types: row.types }).toEqual({ table: row.table_name, columns: 'id', types: 'text' });
   });
 
@@ -162,12 +162,24 @@ describe('schema conventions (PRD §4)', () => {
       select table_name || '.' || column_name as col, column_default, is_nullable from information_schema.columns
       where table_schema = 'public' and column_name in ('created_at', 'updated_at')`;
     // invites is append-mostly (accepted_at / revoked_at record changes), so it only has created_at.
-    expect(rows.length).toBe(35);
+    expect(rows.length).toBe(43);
     for (const row of rows) expect({ col: row.col, d: row.column_default, n: row.is_nullable }).toEqual({ col: row.col, d: 'now()', n: 'NO' });
   });
 });
 
 describe('tables', () => {
+  it('rejects cross-store product tracking and Shopify import references', async () => {
+    const d = await migratedDatabase();
+    await d.sql`insert into stores (id, name, domain) values ('scope_store_a', 'A', 'scope-a.myshopify.com'), ('scope_store_b', 'B', 'scope-b.myshopify.com')`;
+    await d.sql`insert into product_types (id, store_id, name) values ('scope_type_a', 'scope_store_a', 'Poster')`;
+    await d.sql`insert into products (id, store_id, product_type_id, title) values ('scope_product_a', 'scope_store_a', 'scope_type_a', 'Poster')`;
+    await expect(d.sql`insert into store_products (id, product_id, store_id, shopify_gid, status) values ('scope_tracking_b', 'scope_product_a', 'scope_store_b', 'gid://shopify/Product/1', 'pushed')`).rejects.toMatchObject({ code: '23503' });
+    await expect(d.sql`insert into import_runs (id, store_id, source, ref) values ('scope_import_b', 'scope_store_b', 'shopify', 'scope_type_a')`).rejects.toMatchObject({ code: '23503' });
+    await d.sql`insert into store_products (id, product_id, store_id, shopify_gid, status) values ('scope_tracking_a', 'scope_product_a', 'scope_store_a', 'gid://shopify/Product/1', 'pushed')`;
+    await d.sql`delete from products where id = 'scope_product_a'`;
+    expect(await d.sql`select * from store_products`).toHaveLength(0);
+  });
+
   it('insert rows with generated ids and timestamps, and refresh updated_at on update', async () => {
     const d = await migratedDatabase();
     const h = createDatabase(d.connection, { max: 2 });

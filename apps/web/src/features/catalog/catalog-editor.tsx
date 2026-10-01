@@ -3,16 +3,20 @@
 import { useState } from 'react';
 import { ProductTypeForm } from './product-type-form';
 import { ProductTypeCard } from './product-type-card';
+import { ShopifyImports } from './shopify-imports';
+import type { listShopifyImports } from '@pod-studio/core';
 import type { ProductTypeView } from './types';
 
 export function CatalogEditor({
   storeId,
   initialTypes,
   canEdit,
+  imports,
 }: {
   storeId: string;
   initialTypes: ProductTypeView[];
   canEdit: boolean;
+  imports: Awaited<ReturnType<typeof listShopifyImports>>;
 }) {
   const [types, setTypes] = useState(initialTypes);
   const [message, setMessage] = useState('');
@@ -22,6 +26,7 @@ export function CatalogEditor({
   }
   return (
     <div className="space-y-5">
+      <ShopifyImports storeId={storeId} types={types} initial={imports} />
       <div role="status" aria-live="polite" className="text-teal text-[13px] font-semibold empty:hidden">
         {message}
       </div>
