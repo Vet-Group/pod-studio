@@ -1,16 +1,18 @@
-// Kiểm thử nguyên mẫu wireframe bằng Chromium qua CDP, không cần shell hay thư viện ngoài.
-// Chạy: node design/wireframes/test-wireframes.mjs
-// Tùy chọn: CHROME_PATH=... để chỉ định trình duyệt. SCREENSHOTS=0 để bỏ chụp ảnh.
+// Test the wireframe prototype with Chromium over CDP, without a shell or external libraries.
+// Run: node design/wireframes/test-wireframes.mjs
+// Optional: CHROME_PATH=... specifies the browser. SCREENSHOTS=0 skips screenshots.
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 
+const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
 const indexPath = join(here, 'index.html');
 const shotsDir = join(here, 'screenshots');
-const chromePath = process.env.CHROME_PATH || 'C:/Users/Administrator/AppData/Local/ms-playwright/chromium-1243/chrome-win64/chrome.exe';
+const chromePath = process.env.CHROME_PATH || require('@playwright/test').chromium.executablePath();
 const takeShots = process.env.SCREENSHOTS !== '0';
 const port = 9300 + Math.floor(Math.random() * 400);
 const results = [];
@@ -18,13 +20,13 @@ const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail
 
 // Static checks
 const html = readFileSync(indexPath, 'utf8');
-check('Không có dấu gạch dài hoặc ngoặc kép cong', !/[\u2013\u2014\u2018\u2019\u201C\u201D]/.test(html));
-check('Không tải tài nguyên ngoài (src/href http)', !/(src|href)\s*=\s*["']https?:/i.test(html) && !/@import|url\(\s*["']?https?:/i.test(html));
-check('Sidebar rộng 216px', /\.sidebar\{width:216px/.test(html));
-check('Có prefers-reduced-motion', html.includes('prefers-reduced-motion:reduce'));
-check('Dùng dialog gốc', html.includes('<dialog') && html.includes('showModal()'));
+check('No long dashes or curly quotes', !/[\u2013\u2014\u2018\u2019\u201C\u201D]/.test(html));
+check('No external resources loaded (src/href http)', !/(src|href)\s*=\s*["']https?:/i.test(html) && !/@import|url\(\s*["']?https?:/i.test(html));
+check('Sidebar is 216px wide', /\.sidebar\{width:216px/.test(html));
+check('Includes prefers-reduced-motion', html.includes('prefers-reduced-motion:reduce'));
+check('Uses native dialogs', html.includes('<dialog') && html.includes('showModal()'));
 
-if (!existsSync(chromePath)) { console.error('Không tìm thấy Chromium: ' + chromePath); process.exit(2); }
+if (!existsSync(chromePath)) { console.error('Chromium not found: ' + chromePath); process.exit(2); }
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'podwf-'));
 const chrome = spawn(chromePath, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--no-first-run', '--disable-gpu', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -35,7 +37,7 @@ async function connect() {
     try { const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); const page = list.find(t => t.type === 'page'); if (page) return page.webSocketDebuggerUrl; } catch {}
     await sleep(250);
   }
-  throw new Error('Chromium không mở cổng CDP');
+  throw new Error('Chromium did not open the CDP port');
 }
 function send(method, params = {}) { const id = ++seq; ws.send(JSON.stringify({ id, method, params })); return new Promise((res, rej) => pending.set(id, { res, rej })); }
 async function ev(expr) { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; }
@@ -44,7 +46,7 @@ async function viewport(w, h) { await send('Emulation.setDeviceMetricsOverride',
 async function shot(name) { if (!takeShots) return; mkdirSync(shotsDir, { recursive: true }); const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); writeFileSync(join(shotsDir, name + '.png'), Buffer.from(r.data, 'base64')); }
 const click = sel => ev(`(()=>{const e=document.querySelector(${JSON.stringify(sel)});if(!e)throw new Error('missing '+${JSON.stringify(sel)});e.click();return true})()`);
 const text = () => ev('document.body.innerText');
-// Chênh chiều cao giữa 2 cột thẻ ở màn 7 (0 khi chỉ có 1 cột).
+// Height difference between the 2 card columns on screen 7 (0 when there is only 1 column).
 const nicheColGap = () => ev(`(()=>{const s=document.querySelector('.nsec').getBoundingClientRect();const c=[...document.querySelectorAll('.nsec [data-section]')].map(e=>e.getBoundingClientRect());const xs=[...new Set(c.map(b=>Math.round(b.left)))];if(xs.length<2)return 0;const bot=xs.map(x=>Math.max(...c.filter(b=>Math.round(b.left)===x).map(b=>b.bottom)));return Math.round(Math.max(...bot)-Math.min(...bot));})()`);
 
 try {
@@ -58,173 +60,173 @@ try {
   await viewport(1440, 1000);
   await send('Page.navigate', { url: pathToFileURL(indexPath).href }); await sleep(900);
 
-  // 1 Studio
-  check('Có 7 mục điều hướng', (await ev('document.querySelectorAll("#nav button").length')) === 7);
-  check('Sidebar đo được 216px', (await ev('document.querySelector(".sidebar").getBoundingClientRect().width')) === 216);
-  check('Tiêu đề trang bằng tiếng Việt', (await ev('document.title')).includes('Bàn làm việc'));
-  check('Studio ghi quyết định đã chốt, không còn chữ đề xuất', (await text()).includes('dùng chung toàn công ty đã chốt') && !(await text()).includes('chưa xác nhận'));
-  check('Nhãn DEMO hiển thị', (await ev('document.querySelector(".demo").innerText')) === 'DEMO');
-  check('Hiển thị 6 thẻ thiết kế SVG', (await ev('document.querySelectorAll(".designcard svg").length')) >= 6);
+  // 1 Studio: Design library
+  check('Has 7 navigation items', (await ev('document.querySelectorAll("#nav button").length')) === 7);
+  check('Measured sidebar width is 216px', (await ev('document.querySelector(".sidebar").getBoundingClientRect().width')) === 216);
+  check('Page title is in English', (await ev('document.title')).includes('Workspace'));
+  check('Studio shows finalized decisions, with no proposal wording', (await text()).includes('skill library is shared company-wide') && !(await text()).includes('not confirmed'));
+  check('DEMO label is visible', (await ev('document.querySelector(".demo").innerText')) === 'DEMO');
+  check('Displays 6 SVG design cards', (await ev('document.querySelectorAll(".designcard svg").length')) >= 6);
   await shot('01-studio-1440');
-  await ev(`(()=>{const s=document.querySelector('#search');s.value='sóng';s.dispatchEvent(new Event('input',{bubbles:true}))})()`);
-  check('Tìm kiếm lọc thiết kế', (await ev('document.querySelectorAll(".designcard").length')) === 1);
-  check('Tìm kiếm giữ focus ô nhập', (await ev('document.activeElement.id')) === 'search');
+  await ev(`(()=>{const s=document.querySelector('#search');s.value='wave';s.dispatchEvent(new Event('input',{bubbles:true}))})()`);
+  check('Search filters designs', (await ev('document.querySelectorAll(".designcard").length')) === 1);
+  check('Search keeps focus in the input', (await ev('document.activeElement.id')) === 'search');
   await ev(`(()=>{const s=document.querySelector('#search');s.value='';s.dispatchEvent(new Event('input',{bubbles:true}))})()`);
   await click('[data-action="upload"]');
-  check('Ngăn kéo tải lên mở bằng dialog gốc', await ev('document.querySelector("#modal").open && document.querySelector("#modal").classList.contains("drawer")'));
-  check('Focus nằm trong dialog', await ev('document.querySelector("#modal").contains(document.activeElement)'));
+  check('Upload drawer opens as a native dialog', await ev('document.querySelector("#modal").open && document.querySelector("#modal").classList.contains("drawer")'));
+  check('Focus is inside the dialog', await ev('document.querySelector("#modal").contains(document.activeElement)'));
   await shot('02-upload-drawer-1440');
   await key('Escape', 'Escape', 27); await sleep(100);
-  check('Esc đóng dialog và trả focus về nút mở', await ev('!document.querySelector("#modal").open && document.activeElement.dataset.action==="upload"'));
+  check('Esc closes the dialog and returns focus to the opening button', await ev('!document.querySelector("#modal").open && document.activeElement.dataset.action==="upload"'));
   await ev(`(()=>{const c=document.querySelector('[data-select="0"]');c.click()})()`);
   await click('[data-action="mockup"]'); await click('[data-action="createMockup"]');
   await click('[data-action="queue"]');
-  check('Tác vụ mô phỏng vào hàng đợi', (await ev('document.querySelector("#modal").innerText')).includes('Tạo 1 mẫu mô phỏng'));
+  check('Mockup job enters the queue', (await ev('document.querySelector("#modal").innerText')).includes('Create mockups: 1'));
   await click('[data-canceljob]');
-  check('Hủy tác vụ trong hàng đợi', (await ev('document.querySelector("#modal").innerText')).includes('Đã hủy'));
+  check('Cancel a queued job', (await ev('document.querySelector("#modal").innerText')).includes('Canceled'));
   await click('#modal [data-close]');
 
-  // 2 Review
+  // 2 Review: Design review
   await click('[data-nav="review"]');
-  check('Màn duyệt có bản gốc và mẫu mô phỏng', (await text()).includes('BẢN GỐC') && (await text()).includes('MẪU MÔ PHỎNG'));
+  check('Design review screen has the original and mockup', (await text()).includes('Original') && (await text()).includes('Mockup'));
   await key('ArrowRight', 'ArrowRight', 39);
-  check('Phím mũi tên phải chuyển mẫu', (await ev('document.querySelector("h1").innerText')) === 'Mặt trời tháng sáu');
+  check('Right arrow key switches mockups', (await ev('document.querySelector("h1").innerText')) === 'June sun');
   await key('a', 'KeyA', 65);
-  check('Phím A duyệt thiết kế', (await text()).includes('Kết quả DEMO: Đã duyệt'));
+  check('A key approves the design', (await text()).includes('DEMO result: Approved'));
   await key('ArrowLeft', 'ArrowLeft', 37);
-  check('Phím mũi tên trái quay lại', (await ev('document.querySelector("h1").innerText')) === 'Khoảng xanh');
+  check('Left arrow key goes back', (await ev('document.querySelector("h1").innerText')) === 'Green space');
   await key('r', 'KeyR', 82);
-  check('Phím R mở hộp thoại từ chối', await ev('document.querySelector("#modal").open && document.querySelector("#rejectReason")!==null'));
+  check('R key opens the rejection dialog', await ev('document.querySelector("#modal").open && document.querySelector("#rejectReason")!==null'));
   await click('[data-action="confirmReject"]');
-  check('Bắt buộc nhập lý do từ chối', await ev('document.querySelector("#modal").open'));
-  await ev(`document.querySelector('#rejectReason').value='Màu lệch bản gốc'`);
+  check('Rejection reason is required', await ev('document.querySelector("#modal").open'));
+  await ev(`document.querySelector('#rejectReason').value='Colors differ from the original'`);
   await click('[data-action="confirmReject"]');
-  check('Từ chối cập nhật trạng thái', (await text()).includes('Kết quả DEMO: Từ chối'));
+  check('Rejection updates the status', (await text()).includes('DEMO result: Rejected'));
   await shot('03-review-1440');
 
-  // 3 Listing
+  // 3 Listing: Listing content
   await click('[data-nav="listing"]');
   await click('[data-action="generate"]');
-  check('Tạo nội dung cập nhật xem trước', (await ev('document.querySelector("#previewTitle").innerText')) === 'Mang một góc bình yên về nhà');
-  await ev(`(()=>{const t=document.querySelector('#listingTitle');t.value='Tiêu đề thử nghiệm';t.dispatchEvent(new Event('input',{bubbles:true}))})()`);
-  check('Sửa tiêu đề cập nhật xem trước trực tiếp', (await ev('document.querySelector("#previewTitle").innerText')) === 'Tiêu đề thử nghiệm');
+  check('Generating content updates the preview', (await ev('document.querySelector("#previewTitle").innerText')) === 'Botanical wall art');
+  await ev(`(()=>{const t=document.querySelector('#listingTitle');t.value='Test title';t.dispatchEvent(new Event('input',{bubbles:true}))})()`);
+  check('Editing the title updates the preview live', (await ev('document.querySelector("#previewTitle").innerText')) === 'Test title');
   await shot('04-listing-content-1440');
   await click('[data-listtab="analysis"]'); await click('[data-action="analyze"]');
-  check('Tab phân tích chạy giả lập', (await text()).includes('Đã hoàn tất kết quả giả lập'));
+  check('Analysis tab runs a simulation', (await text()).includes('Simulation complete'));
   await shot('05-listing-analysis-1440');
 
-  // 4 Products
+  // 4 Products: Products & push
   await click('[data-nav="products"]');
-  check('Bảng biến thể có 3 dòng', (await ev('document.querySelectorAll("tbody tr").length')) === 3);
+  check('Variant table has 3 rows', (await ev('document.querySelectorAll("tbody tr").length')) === 3);
   await click('[data-action="publish"]');
-  check('Chặn xuất bản khi chưa chạy thử', !(await ev('document.querySelector("#modal").open')) && (await ev('document.querySelector("#toast").innerText')).includes('chạy thử'));
+  check('Publishing is blocked before a dry run', !(await ev('document.querySelector("#modal").open')) && (await ev('document.querySelector("#toast").innerText')).includes('dry run'));
   await click('[data-action="dryrun"]');
-  check('Chạy thử hiển thị kết quả', (await text()).includes('Dữ liệu sản phẩm hợp lệ'));
+  check('Dry run displays results', (await text()).includes('Product data is valid'));
   await ev(`(()=>{const s=document.querySelector('#actor');s.value='admin';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
   await click('[data-action="publish"]');
-  check('Quản trị viên không mặc định được xuất bản', (await ev('document.querySelector("#modal").innerText')).includes('không tự động có quyền xuất bản'));
+  check('Admin cannot publish by default', (await ev('document.querySelector("#modal").innerText')).includes('do not get publish permission automatically'));
   await click('#modal [data-close]');
   await ev(`(()=>{const s=document.querySelector('#actor');s.value='delegate';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
   await click('[data-action="publish"]');
-  check('Người được ủy quyền chưa có quyền xuất bản mặc định', (await ev('document.querySelector("#modal").innerText')).includes('Chưa có quyền xuất bản'));
+  check('Delegate does not have publish permission by default', (await ev('document.querySelector("#modal").innerText')).includes('No publish permission'));
   await click('#modal [data-close]');
   await ev(`(()=>{const s=document.querySelector('#actor');s.value='owner';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
   await click('[data-action="publish"]'); await click('[data-action="confirmPublish"]');
-  check('Xác nhận bắt buộc tích kiểm tra', await ev('document.querySelector("#modal").open'));
+  check('Confirmation requires the checkbox to be checked', await ev('document.querySelector("#modal").open'));
   await ev(`document.querySelector('#confirmPublish').checked=true`); await click('[data-action="confirmPublish"]');
-  check('Chủ cửa hàng xuất bản giả lập', (await text()).includes('Đã xuất bản giả lập'));
+  check('Store owner simulates publishing', (await text()).includes('Published in simulation'));
   await ev(`(()=>{const p=document.querySelector('[data-price="0"]');p.value='30';p.dispatchEvent(new Event('change',{bubbles:true}))})()`);
-  check('Đổi giá xóa kết quả chạy thử', !(await text()).includes('Dữ liệu sản phẩm hợp lệ'));
+  check('Changing the price clears dry-run results', !(await text()).includes('Product data is valid'));
   await shot('06-products-1440');
 
-  // 5 Team
+  // 5 Team: Stores & members
   await click('[data-nav="team"]');
-  check('Có 3 cửa hàng để chọn', (await ev('document.querySelectorAll("[data-store]").length')) === 3);
+  check('Has 3 stores to choose from', (await ev('document.querySelectorAll("[data-store]").length')) === 3);
   await ev(`(()=>{const c=document.querySelector('#delegatePublish');c.click()})()`);
   await click('[data-nav="products"]');
   await ev(`(()=>{const s=document.querySelector('#actor');s.value='delegate';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
-  check('Ủy quyền rõ ràng cấp quyền xuất bản cho Lan Chi', (await text()).includes('Quyền xuất bản: Có'));
+  check('Explicit delegation grants publish permission to Casey Lee', (await text()).includes('Publish permission: Yes'));
   await click('[data-nav="team"]');
   await click('[data-action="invite"]');
   await click('[data-action="createInvite"]');
-  check('Email lời mời được kiểm tra hợp lệ', await ev('document.querySelector("#inviteForm")!==null'));
+  check('Invite email is validated', await ev('document.querySelector("#inviteForm")!==null'));
   await ev(`document.querySelector('#inviteEmail').value='moi@example.invalid'`);
   await click('[data-action="createInvite"]');
-  check('Lời mời DEMO được tạo', (await ev('document.querySelector("#modal").innerText')).includes('moi@example.invalid'));
+  check('DEMO invite is created', (await ev('document.querySelector("#modal").innerText')).includes('moi@example.invalid'));
   await click('#modal [data-close]');
   await shot('07-team-1440');
   await click('[data-store="2"]');
-  check('Chọn cửa hàng đồng bộ bộ chọn trên cùng', (await ev('document.querySelector("#storeSelect").value')) === '2');
-  check('Cửa hàng không sở hữu bị khóa ủy quyền', await ev('document.querySelector("#delegatePublish").disabled'));
+  check('Store selection syncs the top selector', (await ev('document.querySelector("#storeSelect").value')) === '2');
+  check('Delegation is disabled for a store the user does not own', await ev('document.querySelector("#delegatePublish").disabled'));
   await click('[data-store="0"]');
 
-  // 6 Skills
+  // 6 Skills: Skills & operations
   await click('[data-nav="skills"]');
-  check('Có 4 tab kỹ năng và vận hành', (await ev('document.querySelectorAll("[data-skilltab]").length')) === 4);
+  check('Has 4 skills and operations tabs', (await ev('document.querySelectorAll("[data-skilltab]").length')) === 4);
   await shot('08-skills-1440');
   await click('[data-skilltab="health"]');
   const health = await text();
-  check('Tab sức khỏe chỉ hiển thị thời gian nghỉ', health.includes('không phải giới hạn sử dụng') && !/hạn mức|ngân sách|quota|budget/i.test(health));
-  check('Tab sức khỏe có bảng tài khoản AI và danh sách worker', await ev('!!document.querySelector("table.health") && document.body.innerText.includes("browser-01@studio-host")'));
+  check('Health tab displays only rest periods', health.includes('not a usage limit') && !/allowance|spending limit|quota|budget/i.test(health));
+  check('Health tab has an AI account table and worker list', await ev('!!document.querySelector("table.health") && document.body.innerText.includes("browser-01@studio-host")'));
   await click('[data-action="relogged"]');
-  check('Nút Đã đăng nhập lại ghi nhận trạng thái', (await text()).includes('Đã báo đăng nhập lại'));
+  check('Logged in again button records the status', (await text()).includes('Sign-in reported'));
   await shot('09-operations-1440');
   await click('[data-skilltab="providers"]');
-  check('Không có chuyển API dự phòng', (await text()).includes('không tự chuyển sang API khác'));
+  check('No fallback API switching', (await text()).includes('does not switch to another API automatically'));
 
-  // 7 Dữ liệu ngách: soạn niche master data theo schema 2.0 của generator
+  // 7 Niche: Niche data, editing niche master data using the generator schema 2.0
   await click('[data-nav="niche"]'); await sleep(80);
   const nq = sel => ev(`document.querySelector(${JSON.stringify(sel)})?.innerText`);
   const nset = (sel, v) => ev(`(()=>{const s=document.querySelector(${JSON.stringify(sel)});s.value=${JSON.stringify(v)};s.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
   const disabled = sel => ev(`document.querySelector(${JSON.stringify(sel)}).disabled`);
-  check('Đổi màn thì tắt thông báo của màn trước', (await ev('document.querySelector("#toast").textContent')) === '');
-  check('Màn 7 mở từ điều hướng', (await nq('h1')) === 'Soạn master data, build skill.');
-  check('Màn 7 có đúng 5 bước', (await ev('document.querySelectorAll("[data-nstep]").length')) === 5);
+  check('Switching screens dismisses the previous screen notification', (await ev('document.querySelector("#toast").textContent')) === '');
+  check('Screen 7 opens from navigation', (await nq('h1')) === 'Edit master data, build skills.');
+  check('Screen 7 has exactly 5 steps', (await ev('document.querySelectorAll("[data-nstep]").length')) === 5);
   const t7 = await text();
-  check('Quyền soạn và publish tách riêng', t7.includes('skill.edit') && t7.includes('skill.publish'));
+  check('Editing and publishing permissions are separate', t7.includes('skill.edit') && t7.includes('skill.publish'));
   const allSections = await ev(`(async()=>{const ids=[];for(let i=0;i<5;i++){document.querySelector('[data-nstep="'+i+'"]').click();await new Promise(r=>setTimeout(r,30));document.querySelectorAll('[data-section]').forEach(s=>ids.push(s.dataset.section));}document.querySelector('[data-nstep="0"]').click();return ids})()`);
-  check('Đủ 17 section của schema', allSections.length === 17 && new Set(allSections).size === 17, allSections.length + ' section');
-  check('Bước 1 báo persona 8/8', (await nq('[data-count="personas"]')) === '8 / tối thiểu 8');
-  check('Trạng thái dữ liệu có đúng 3 mức', (await ev('[...document.querySelectorAll("#nicheStatus option")].map(o=>o.value).join(",")')) === 'curated-draft,researched,validated');
-  check('Thiếu dữ liệu thì chặn build', (await disabled('[data-nbuild]')) === true);
+  check('Includes all 17 schema sections', allSections.length === 17 && new Set(allSections).size === 17, allSections.length + ' section');
+  check('Step 1 reports personas at 8/8', (await nq('[data-count="personas"]')) === '8 / minimum 8');
+  check('Data status has exactly 3 levels', (await ev('[...document.querySelectorAll("#nicheStatus option")].map(o=>o.value).join(",")')) === 'curated-draft,researched,validated');
+  check('Missing data blocks the build', (await disabled('[data-nbuild]')) === true);
   const errText = await nq('.nerrs');
-  check('Lỗi dịp mua đúng định dạng validator', errText.includes('- occasions: requires at least 8 records; found 6'));
-  check('Lỗi brief mẫu đúng ngưỡng 6', errText.includes('- sample_briefs: requires at least 6 records; found 4'));
-  check('Bước có lỗi gắn nhãn đỏ', (await nq('[data-nstep="1"] .badge.red')) === '1 lỗi');
+  check('Occasion error matches the validator format', errText.includes('- occasions: requires at least 8 records; found 6'));
+  check('Sample brief error uses the correct threshold of 6', errText.includes('- sample_briefs: requires at least 6 records; found 4'));
+  check('Steps with errors have red labels', (await nq('[data-nstep="1"] .badge.red')) === '1 error');
   await click('[data-nfix="occasions"]'); await sleep(60);
-  check('Nút Sửa nhảy tới đúng bước', (await ev('document.querySelector("[aria-current=step]").dataset.nstep')) === '1');
-  check('Nút Sửa đưa focus tới trường lỗi', (await ev('document.activeElement.dataset.nadd')) === 'occasions');
+  check('Fix button jumps to the correct step', (await ev('document.querySelector("[aria-current=step]").dataset.nstep')) === '1');
+  check('Fix button focuses the invalid field', (await ev('document.activeElement.dataset.nadd')) === 'occasions');
   await click('[data-nadd="occasions"]'); await click('[data-nadd="occasions"]');
-  check('Thêm dịp mua tới 8/8 thì hết lỗi', (await nq('[data-count="occasions"]')) === '8 / tối thiểu 8' && !(await nq('.nerrs')).includes('occasions'));
+  check('Adding occasions to 8/8 clears the error', (await nq('[data-count="occasions"]')) === '8 / minimum 8' && !(await nq('.nerrs')).includes('occasions'));
   await click('[data-nnext]'); await sleep(40);
-  check('Kiểu chữ yêu cầu tối thiểu 3', (await nq('[data-count="visual_vocabulary.typography"]')) === '3 / tối thiểu 3');
+  check('Typography requires at least 3 entries', (await nq('[data-count="visual_vocabulary.typography"]')) === '3 / minimum 3');
   await click('[data-nnext]'); await sleep(40);
   await click('[data-nadd="sample_briefs"]'); await click('[data-nadd="sample_briefs"]');
-  check('Brief mẫu đạt 6/6', (await nq('[data-count="sample_briefs"]')) === '6 / tối thiểu 6');
-  check('Chấm thị trường có 6 tiêu chí', (await ev('document.querySelectorAll("[data-score]").length')) === 6);
-  check('Tổng điểm mặc định 26/30 là Làm', (await nq('#fitTotal')) === '26/30' && (await nq('#fitVerdict')) === 'Làm');
+  check('Sample briefs reach 6/6', (await nq('[data-count="sample_briefs"]')) === '6 / minimum 6');
+  check('Market scoring has 6 criteria', (await ev('document.querySelectorAll("[data-score]").length')) === 6);
+  check('Default total score of 26/30 is Go', (await nq('#fitTotal')) === '26/30' && (await nq('#fitVerdict')) === 'Produce');
   await nset('[data-score="ip"]', '3'); await sleep(40);
-  check('Điểm IP dưới 4 luôn chặn', (await nq('#fitVerdict')).startsWith('Chặn'));
+  check('IP score below 4 always blocks', (await nq('#fitVerdict')).startsWith('Blocked'));
   await nset('[data-score="ip"]', '5'); await sleep(40);
   await click('[data-nnext]'); await sleep(40);
-  check('Style variant đúng 4, nút thêm bị khóa', (await nq('[data-count="style_variants"]')) === '4 / đúng 4' && (await disabled('[data-nadd="style_variants"]')) === true);
+  check('Exactly 4 style variants, with the add button disabled', (await nq('[data-count="style_variants"]')) === '4 / exactly 4' && (await disabled('[data-nadd="style_variants"]')) === true);
   const gap1440 = await nicheColGap();
-  check('Bước 5 ở 1440px không để khoảng trống dưới Luật QA', gap1440 <= 1, 'chênh ' + gap1440 + 'px');
+  check('Step 5 at 1440px has no gap below QA Rules', gap1440 <= 1, 'difference ' + gap1440 + 'px');
   const qa = await nq('[data-section="qa_rules"]');
-  check('Luật QA là object, có nền #00FF00 và tỉ lệ 3:4', qa.includes('#00FF00') && qa.includes('3:4'));
+  check('QA rules are an object with background #00FF00 and ratio 3:4', qa.includes('#00FF00') && qa.includes('3:4'));
   await nset('#nicheMaxColors', '13'); await sleep(40);
-  check('Số màu 13 bị báo lỗi 1 đến 12', (await text()).includes('qa_rules.max_colors: expected an integer from 1 to 12') && (await disabled('[data-nbuild]')) === true);
+  check('13 colors triggers a 1 to 12 range error', (await text()).includes('qa_rules.max_colors: expected an integer from 1 to 12') && (await disabled('[data-nbuild]')) === true);
   await nset('#nicheMaxColors', '6'); await sleep(40);
-  check('Đủ dữ liệu thì mở build', (await disabled('[data-nbuild]')) === false);
+  check('Complete data enables the build', (await disabled('[data-nbuild]')) === false);
   await click('[data-nbuild]'); await sleep(60);
   const built = await text();
-  check('Build xong vẫn chưa publish', built.includes('Đã build skill version v3 DEMO') && built.includes('Chưa publish') && (await ev('document.activeElement.className')) === 'nbuilt');
+  check('Completed build is still unpublished', built.includes('DEMO skill version v3 built') && built.includes('Not published') && (await ev('document.activeElement.className')) === 'nbuilt');
   await shot('12-niche-1440');
 
   // Themes
   for (const [t, name] of [['dense', '10-theme-dense-1440'], ['dark', '11-theme-dark-1440']]) {
     await click(`[data-theme="${t}"]`); await click('[data-nav="studio"]');
-    check(`Hướng ${t} áp dụng lớp body`, (await ev('document.body.className')) === t);
+    check(`Direction ${t} applies the body class`, (await ev('document.body.className')) === t);
     await shot(name);
   }
   await click('[data-theme="light"]');
@@ -234,15 +236,15 @@ try {
     await viewport(w, h);
     // Every nav label must be fully visible: inside the viewport and not truncated by its own box.
     const navClip = await ev(`[...document.querySelectorAll('#nav button')].filter(b => { const r = b.getBoundingClientRect(); const l = b.querySelector('span'); return r.left < 0 || r.right > ${w} + 1 || (l && l.scrollWidth > l.clientWidth + 1); }).map(b => b.textContent.trim())`);
-    check(`Thanh điều hướng không cắt nhãn ${w}px`, navClip.length === 0, navClip.join(', '));
+    check(`Navigation labels at ${w}px are not clipped`, navClip.length === 0, navClip.join(', '));
     // Compare against the requested width: with mobile emulation window.innerWidth grows with the
     // content, which hid a real 122px overflow on the review screen.
     for (const s of ['studio', 'review', 'listing', 'products', 'team', 'skills', 'niche']) {
       await click(`[data-nav="${s}"]`); await sleep(80);
       const overflow = await ev(`document.documentElement.scrollWidth - ${w}`);
-      check(`Không tràn ngang ${s} ${w}px`, overflow <= 1, 'dư ' + overflow + 'px');
-      if (s === 'niche' && w === 1024) { await click('[data-nstep="4"]'); await sleep(40); const g = await nicheColGap(); check('Bước 5 ở 1024px hai cột cân nhau', g <= 1, 'chênh ' + g + 'px'); }
-      if (s === 'niche' && w === 390) { await click('[data-nstep="4"]'); await sleep(40); const order = await ev('[...document.querySelectorAll(".nsec [data-section]")].map(e=>e.dataset.section).join(",")'); check('Bước 5 ở 390px giữ thứ tự Style, IP, QA và 1 cột', order === 'style_variants,ip_safety,qa_rules' && (await nicheColGap()) === 0, order); }
+      check(`No horizontal overflow on ${s} at ${w}px`, overflow <= 1, 'overflow ' + overflow + 'px');
+      if (s === 'niche' && w === 1024) { await click('[data-nstep="4"]'); await sleep(40); const g = await nicheColGap(); check('Step 5 at 1024px has balanced columns', g <= 1, 'difference ' + g + 'px'); }
+      if (s === 'niche' && w === 390) { await click('[data-nstep="4"]'); await sleep(40); const order = await ev('[...document.querySelectorAll(".nsec [data-section]")].map(e=>e.dataset.section).join(",")'); check('Step 5 at 390px keeps Style, IP, QA order in one column', order === 'style_variants,ip_safety,qa_rules' && (await nicheColGap()) === 0, order); }
       await shot(`${s}-${w}`);
     }
   }
@@ -279,10 +281,10 @@ try {
     }
   }
   await click('[data-theme="light"]');
-  check('Chữ đạt tương phản WCAG AA ở 3 hướng và 4 độ rộng', floor.contrast.length === 0, floor.contrast.slice(0, 3).join(' | '));
-  check('Không có chữ nhỏ hơn 11px', floor.small.length === 0, floor.small.slice(0, 3).join(' | '));
-  check('Nút và ô chọn tối thiểu 32px', floor.tiny.length === 0, floor.tiny.slice(0, 3).join(' | '));
-  check('Vùng bấm ở 390px tối thiểu 44px', floor.tap44.length === 0, floor.tap44.slice(0, 3).join(' | '));
+  check('Text meets WCAG AA contrast across 3 directions and 4 widths', floor.contrast.length === 0, floor.contrast.slice(0, 3).join(' | '));
+  check('No text smaller than 11px', floor.small.length === 0, floor.small.slice(0, 3).join(' | '));
+  check('Buttons and selection controls are at least 32px', floor.tiny.length === 0, floor.tiny.slice(0, 3).join(' | '));
+  check('Tap targets at 390px are at least 44px', floor.tap44.length === 0, floor.tap44.slice(0, 3).join(' | '));
   const toastHits = [];
   for (const [w, h] of [[1440, 1000], [1024, 900], [760, 1000], [390, 844]]) {
     await viewport(w, h);
@@ -290,25 +292,25 @@ try {
       await click(`[data-nav="${s}"]`); await sleep(40);
       for (const y of ['0', 'document.documentElement.scrollHeight']) {
         await ev(`window.scrollTo(0, ${y})`); await sleep(40);
-        const hit = await ev(`(async()=>{toast('Kiểm tra vị trí thông báo');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=document.querySelector('#toast').getBoundingClientRect();const pe=getComputedStyle(document.querySelector('#toast')).pointerEvents;const out=[...document.querySelectorAll('.reviewcontrols button,.nbar button')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.bottom>0&&b.top<innerHeight&&!(a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom)}).map(e=>e.textContent.trim());document.querySelector('#toast').textContent='';return pe!=='none'?['pointer-events='+pe]:out})()`);
+        const hit = await ev(`(async()=>{toast('Check notification position');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const a=document.querySelector('#toast').getBoundingClientRect();const pe=getComputedStyle(document.querySelector('#toast')).pointerEvents;const out=[...document.querySelectorAll('.reviewcontrols button,.nbar button')].filter(e=>{const b=e.getBoundingClientRect();return b.width&&b.bottom>0&&b.top<innerHeight&&!(a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom)}).map(e=>e.textContent.trim());document.querySelector('#toast').textContent='';return pe!=='none'?['pointer-events='+pe]:out})()`);
         for (const x of hit) toastHits.push(`${s}/${w}: ${x}`);
       }
     }
   }
   await viewport(1440, 1000);
-  check('Thông báo không che thanh nút dính và không chặn click', toastHits.length === 0, toastHits.slice(0, 3).join(' | '));
+  check('Toasts do not cover sticky action bars or block clicks', toastHits.length === 0, toastHits.slice(0, 3).join(' | '));
 
   // Focus visibility and semantics
   await click('[data-nav="studio"]');
   const clickableDivs = await ev('[...document.querySelectorAll("div[onclick],span[onclick]")].length');
-  check('Không dùng div/span làm nút', clickableDivs === 0);
+  check('No div/span elements used as buttons', clickableDivs === 0);
   await ev('document.querySelector("[data-action=upload]").focus()');
-  check('Focus hiển thị rõ', (await ev('getComputedStyle(document.activeElement).outlineStyle')) !== 'none');
+  check('Focus is clearly visible', (await ev('getComputedStyle(document.activeElement).outlineStyle')) !== 'none');
   const external = netRequests.filter(u => !u.startsWith('file:') && !u.startsWith('data:') && !u.startsWith('about:'));
-  check('Không có yêu cầu mạng ra ngoài', external.length === 0, external.slice(0, 3).join(', '));
-  check('Không có lỗi JavaScript', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
+  check('No outgoing network requests', external.length === 0, external.slice(0, 3).join(', '));
+  check('No JavaScript errors', consoleErrors.length === 0, consoleErrors.slice(0, 2).join(' | '));
 } catch (err) {
-  check('Thực thi kiểm thử', false, err.message);
+  check('Test execution', false, err.message);
 } finally {
   try { ws?.close(); } catch {}
   chrome.kill();
@@ -316,5 +318,5 @@ try {
   try { rmSync(profile, { recursive: true, force: true }); } catch {}
 }
 const failed = results.filter(r => !r.ok);
-console.log(`\n${results.length - failed.length}/${results.length} kiểm tra đạt.${takeShots ? ' Ảnh chụp: ' + shotsDir : ''}`);
+console.log(`\n${results.length - failed.length}/${results.length} checks passed.${takeShots ? ' Screenshots: ' + shotsDir : ''}`);
 process.exit(failed.length ? 1 : 0);
