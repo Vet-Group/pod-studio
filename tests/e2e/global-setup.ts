@@ -9,6 +9,7 @@ import { assertTestEnvironment } from '../support/environment';
 import { serverSettings } from '../support/db';
 import { createTestBucket, storageSettings } from '../support/storage';
 import { assertSafeDatabase } from '../support/guard';
+import { startShopifyStub } from '../support/shopify-stub';
 import { e2eConnection, migrate, seedAdmin } from './fixtures';
 
 function maintenance() {
@@ -58,7 +59,7 @@ export default async function globalSetup(config: FullConfig) {
 
   // `next dev` compiles each route on first request, and parallel first requests to one route can
   // read a half-written manifest ("Unexpected end of JSON input"). Compile every route once, in turn.
-  for (const path of ['/', '/studio', '/stores', '/stores/warm-up/members', '/change-password', '/not-a-page', '/api/auth/get-session']) {
+  for (const path of ['/', '/studio', '/stores', '/stores/warm-up/members', '/stores/warm-up/settings', '/change-password', '/not-a-page', '/api/auth/get-session']) {
     await api.get(path);
   }
   const anonymous = await request.newContext({ baseURL });
@@ -66,8 +67,10 @@ export default async function globalSetup(config: FullConfig) {
   await anonymous.dispose();
   await api.dispose();
   process.env.POD_E2E_ADMIN_STATE = statePath;
+  const shopifyStub = await startShopifyStub([], Number(process.env.SHOPIFY_STUB_PORT));
 
   return async () => {
+    await shopifyStub.close();
     await bucket.drop();
     rmSync(stateDir, { recursive: true, force: true });
     const cleanup = maintenance();

@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './shopify';
 export * from './access';
 export * from './assets/assets';
 export * from './assets/errors';

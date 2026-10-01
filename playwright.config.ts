@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.WEB_PORT ?? 3100);
 const baseURL = `http://127.0.0.1:${port}`;
+const shopifyStubPort = port + 10000;
+const shopifyEncryptionKey = randomBytes(32).toString('base64');
+process.env.SHOPIFY_STUB_PORT = String(shopifyStubPort);
 
 /*
  * Every E2E run gets its own migrated `pod_e2e_<random>_test` database (tests/e2e/global-setup.ts)
@@ -47,6 +50,9 @@ export default defineConfig({
       S3_BUCKET: process.env.POD_E2E_BUCKET,
       BETTER_AUTH_SECRET: process.env.POD_E2E_AUTH_SECRET,
       BETTER_AUTH_URL: baseURL,
+      SHOPIFY_ENCRYPTION_KEYS: `v1:${shopifyEncryptionKey}`,
+      SHOPIFY_ENCRYPTION_ACTIVE_VERSION: 'v1',
+      SHOPIFY_ENDPOINT_OVERRIDE: `http://127.0.0.1:${shopifyStubPort}/graphql`,
       BETTER_AUTH_TRUSTED_ORIGINS: baseURL,
     },
   },
