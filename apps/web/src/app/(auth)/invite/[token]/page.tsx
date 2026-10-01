@@ -35,7 +35,7 @@ export default async function InvitePage({ params }: PageProps<'/invite/[token]'
     return (
       <>
         <header className="mb-7">
-          <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px]">{copy.title}</h1>
+          <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px] text-balance">{copy.title}</h1>
           <p className="text-muted mt-2.5 text-[13px] text-pretty">{copy.body}</p>
         </header>
         <Button asChild variant="secondary" className="h-11 w-full">
@@ -48,7 +48,7 @@ export default async function InvitePage({ params }: PageProps<'/invite/[token]'
   return (
     <>
       <header className="mb-7">
-        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px]">Join POD Studio</h1>
+        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px] text-balance">Join POD Studio</h1>
         <p className="text-muted mt-2.5 text-[13px] text-pretty">
           You were invited as <strong className="text-ink break-all">{invite.email}</strong>. Enter your name and choose a
           password to create your account.

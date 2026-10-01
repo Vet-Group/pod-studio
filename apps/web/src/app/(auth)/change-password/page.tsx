@@ -13,7 +13,7 @@ export default async function ChangePasswordPage() {
   return (
     <>
       <header className="mb-7">
-        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px]">
+        <h1 className="text-[30px] leading-[1.2] font-semibold tracking-[-1px] text-balance">
           {forced ? 'Choose your password' : 'Change password'}
         </h1>
         <p className="text-muted mt-2.5 text-[13px] text-pretty">
