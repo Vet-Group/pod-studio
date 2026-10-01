@@ -263,6 +263,25 @@ describe('invite permissions (no escalation through invites)', () => {
     );
   });
 
+  it('holds an admin to the store permissions it actually has (admins do not get push by default)', async () => {
+    const h = await harness();
+    const grant = (permissions: StoreGrant['permissions']) => ({
+      email: 'helper@example.test',
+      store: { storeId: 'store_aaa_001', role: 'seller_support' as const, permissions },
+    });
+
+    // An admin who is not a member of the store can still invite with plain access ...
+    await expect(createInvite(h.deps, h.admin, grant(['store.view', 'product.edit']))).resolves.toBeTruthy();
+    // ... but cannot hand out what it does not hold itself (ADR 0002: admin is not a store pusher).
+    for (const permission of ['product.push', 'store.settings', 'store.members'] as const) {
+      await expectAuthError(createInvite(h.deps, h.admin, grant(['store.view', permission])), 'FORBIDDEN');
+    }
+
+    // Once the owner grants the admin push, the admin may pass it on like any member.
+    h.memberships.set('user_admin_01:store_aaa_001', { role: 'co_leader', permissions: ['store.view', 'product.push'] });
+    await expect(createInvite(h.deps, h.admin, grant(['store.view', 'product.push']))).resolves.toBeTruthy();
+  });
+
   it('never lets anyone invite themselves (no self-granted store access)', async () => {
     const h = await harness();
     const store = { storeId: 'store_aaa_001', role: 'seller' as const, permissions: ['store.view' as const, 'product.push' as const] };

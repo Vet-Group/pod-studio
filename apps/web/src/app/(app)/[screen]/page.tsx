@@ -35,7 +35,7 @@ export default async function ScreenPlaceholder({ params }: PageProps<'/[screen]
         <ul className="text-muted mt-3 list-disc space-y-1 pl-5">
           <li>Next.js App Router, React 19, strict TypeScript and Tailwind CSS v4 are running.</li>
           <li>Navigation, responsive layout and colors come from the wireframe.</li>
-          <li>No real data, sign-in or database connection yet (P1-02, P1-03).</li>
+          <li>Sign-in, invite links and temporary passwords work (P1-03); no store data yet (P1-04).</li>
         </ul>
       </div>
     </section>

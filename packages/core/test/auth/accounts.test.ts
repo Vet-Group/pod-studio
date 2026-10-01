@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { verifyPassword } from 'better-auth/crypto';
 import { accounts, auditLog, createDatabase, eq, migrateDatabase, sessions, users, type Database } from '@pod-studio/db';
 import { createTestDatabase } from '../../../../tests/support/db';
-import { AuthError, changePassword, createUserWithTemporaryPassword, hashPassword, type Principal } from '../../src/auth';
+import { AuthError, changePassword, createFirstAdmin, createUserWithTemporaryPassword, hashPassword, type Principal } from '../../src/auth';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -60,6 +60,40 @@ describe('temporary passwords', () => {
   });
 });
 
+describe('createFirstAdmin', () => {
+  async function emptyDatabase(): Promise<Database> {
+    const test = await createTestDatabase();
+    cleanup.push(() => test.drop());
+    await migrateDatabase(test.connection);
+    const handle = createDatabase(test.connection, { max: 4 });
+    cleanup.push(() => handle.close());
+    return handle.db;
+  }
+
+  it('creates exactly one admin on a fresh install, with a temporary password', async () => {
+    const db = await emptyDatabase();
+    const first = await createFirstAdmin(db, { email: ' Owner@Example.test ', name: 'Owner' });
+    expect(first.email).toBe('owner@example.test');
+    const [user] = await db.select().from(users).where(eq(users.id, first.userId));
+    expect(user).toMatchObject({ role: 'admin', mustChangePassword: true });
+    expect(await verifyPassword({ hash: await storedHash(db, first.userId), password: first.temporaryPassword })).toBe(true);
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.targetId, first.userId));
+    expect(entry).toMatchObject({ action: 'user.bootstrap-admin', actorUserId: null });
+
+    await expect(createFirstAdmin(db, { email: 'second@example.test', name: 'Second' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('lets only one of two concurrent bootstrap runs create an admin', async () => {
+    const db = await emptyDatabase();
+    const results = await Promise.allSettled([
+      createFirstAdmin(db, { email: 'a@example.test', name: 'A' }),
+      createFirstAdmin(db, { email: 'b@example.test', name: 'B' }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(await db.$count(users, eq(users.role, 'admin'))).toBe(1);
+  });
+});
+
 describe('changePassword', () => {
   it('replaces the password, clears the flag, keeps this session and signs out the others', async () => {
     const db = await database();
@@ -110,5 +144,45 @@ describe('changePassword', () => {
     await changePassword(db, { userId: 'user_plain_01', currentPassword: 'old-password-12345', newPassword: 'new-password-67890' });
     const [entry] = await db.select().from(auditLog).where(eq(auditLog.action, 'auth.password.change'));
     expect(entry?.data).toMatchObject({ forced: false });
+  });
+
+  it('rejects a new password that only looks different but hashes to the current one', async () => {
+    const db = await database();
+    await db.insert(users).values({ id: 'user_nfkc_001', name: 'N', email: 'n@example.test', mustChangePassword: true });
+    await db
+      .insert(accounts)
+      .values({ id: 'acct_nfkc_001', accountId: 'user_nfkc_001', providerId: 'credential', userId: 'user_nfkc_001', password: await hashPassword('Temp-password-1234') });
+
+    // Full-width forms differ as strings, but the password hash normalises both to NFKC first.
+    const lookalike = 'Temp-password-1234'.normalize('NFKC').replace(/[!-~]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0));
+    expect(lookalike).not.toBe('Temp-password-1234');
+    await expect(
+      changePassword(db, { userId: 'user_nfkc_001', currentPassword: 'Temp-password-1234', newPassword: lookalike }),
+    ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+
+    const [user] = await db.select({ flag: users.mustChangePassword }).from(users).where(eq(users.id, 'user_nfkc_001'));
+    expect(user?.flag).toBe(true);
+    expect(await verifyPassword({ hash: await storedHash(db, 'user_nfkc_001'), password: 'Temp-password-1234' })).toBe(true);
+  });
+
+  it('lets only one of two concurrent changes with the same current password win', async () => {
+    const db = await database();
+    const { userId, temporaryPassword } = await createUserWithTemporaryPassword(db, admin, { email: 'race@example.test', name: 'R' });
+
+    const results = await Promise.allSettled([
+      changePassword(db, { userId, currentPassword: temporaryPassword, newPassword: 'first-new-password-1' }),
+      changePassword(db, { userId, currentPassword: temporaryPassword, newPassword: 'second-new-password-2' }),
+    ]);
+    const won = results.filter((r) => r.status === 'fulfilled');
+    expect(won).toHaveLength(1);
+    const lost = results.find((r) => r.status === 'rejected');
+    expect((lost as PromiseRejectedResult).reason).toMatchObject({ code: 'INVALID_INPUT' });
+
+    // Whichever request won, its password is the one stored; the loser overwrote nothing.
+    const hash = await storedHash(db, userId);
+    const first = await verifyPassword({ hash, password: 'first-new-password-1' });
+    const second = await verifyPassword({ hash, password: 'second-new-password-2' });
+    expect(first !== second).toBe(true);
+    expect(await db.$count(auditLog, eq(auditLog.action, 'auth.password.change'))).toBe(1);
   });
 });

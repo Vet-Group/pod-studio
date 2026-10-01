@@ -13,6 +13,12 @@ import {
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * What an admin may grant in a store it holds no membership in: everyday access only. Push, publish,
+ * store settings (Shopify credentials) and member management stay with the owner's chain of trust.
+ */
+const ADMIN_GRANTABLE: readonly StorePermission[] = ['store.view', 'analysis.run', 'product.edit', 'content.generate'];
+
 /** The signed-in user performing an action. */
 export interface Principal {
   userId: string;
@@ -75,9 +81,12 @@ async function assertCanGrantStore(deps: InviteDeps, actor: Principal, store: No
   if (store.permissions.includes('product.publish') && membership?.role !== 'owner') {
     throw new AuthError('FORBIDDEN', 'Only the store owner can grant the publish permission.');
   }
-  if (actor.role === 'admin') return;
-  if (!membership?.permissions.includes('store.members')) throw new AuthError('FORBIDDEN');
-  if (!store.permissions.every((p) => membership.permissions.includes(p))) {
+  // Admins may invite into any store, but only with what anyone may see there; push, settings and
+  // member management still have to come from someone who holds them (ADR 0002).
+  if (actor.role !== 'admin' && !membership?.permissions.includes('store.members')) throw new AuthError('FORBIDDEN');
+  const held = new Set<StorePermission>(actor.role === 'admin' ? ADMIN_GRANTABLE : []);
+  for (const permission of membership?.permissions ?? []) held.add(permission);
+  if (!store.permissions.every((p) => held.has(p))) {
     throw new AuthError('FORBIDDEN', 'You cannot grant a permission you do not have.');
   }
 }

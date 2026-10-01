@@ -1,6 +1,6 @@
-// Server-only: imported by the auth route handler and proxy.ts, never by client components.
+// Server-only: imported by route handlers, server components and proxy.ts, never by client components.
 import { createAuth, type Auth } from '@pod-studio/core';
-import { createDatabase, type ConnectionOptions } from '@pod-studio/db';
+import { createDatabase, type ConnectionOptions, type Database } from '@pod-studio/db';
 
 /**
  * Same lookup as `pnpm db:migrate`: DATABASE_URL, or the standard PG* variables that postgres.js
@@ -19,9 +19,8 @@ function required(env: NodeJS.ProcessEnv, name: 'BETTER_AUTH_SECRET' | 'BETTER_A
 }
 
 function build(env: NodeJS.ProcessEnv): Auth {
-  const { db } = createDatabase(connection(env));
   return createAuth({
-    db,
+    db: getDatabase(),
     secret: required(env, 'BETTER_AUTH_SECRET'),
     baseURL: required(env, 'BETTER_AUTH_URL'),
     trustedOrigins: env.BETTER_AUTH_TRUSTED_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean),
@@ -29,7 +28,13 @@ function build(env: NodeJS.ProcessEnv): Auth {
 }
 
 // One pool per server process; dev hot reload would otherwise open a new pool on every edit.
-const globalForAuth = globalThis as typeof globalThis & { podStudioAuth?: Auth };
+const globalForAuth = globalThis as typeof globalThis & { podStudioDb?: Database; podStudioAuth?: Auth };
+
+/** The server-side database handle shared by better-auth and app code. Created on first use. */
+export function getDatabase(): Database {
+  globalForAuth.podStudioDb ??= createDatabase(connection(process.env)).db;
+  return globalForAuth.podStudioDb;
+}
 
 /** The server-side better-auth instance. Created on first use so builds never need database env vars. */
 export function getAuth(): Auth {
