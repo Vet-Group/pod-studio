@@ -43,6 +43,29 @@ Store-scoped permissions (`store_members`, `store_member_permissions`, presets) 
 - `request_id` and `ip` (`inet`, also accepts IPv6) are left empty when the action does not originate from an HTTP request. Do not invent values.
 - Migration `0001` installs triggers that block `UPDATE`, `DELETE`, `TRUNCATE`. Correct errors by adding a new row. Any future retention cleanup job requires its own reviewed migration.
 
+## Catalog tables (P2-03)
+
+- `product_types` belong to a store and define 1–3 ordered, required options and their allowed values.
+  Names are unique per store via `lower(name)`. `revision` is an optimistic concurrency token shared by
+  type edits and price-table saves. Store-row locking serializes edits with membership changes.
+- `pricing_rules` are actual price-table rows, not option Cartesian products. A composite foreign key
+  enforces that each row's store matches its product type. Variant generation returns exactly one
+  variant per row ordered by zero-based `sort_order`, preserving row IDs and `excluded_markets`.
+- Money is stored as **integer minor units** (`price_minor`, cents), not JavaScript decimal floats.
+  Decimal text is parsed with integer/BigInt arithmetic: `0.29` becomes `29`, without rounding.
+  Supported currencies are USD, EUR, GBP, CAD and AUD (all two decimals). Values range from 0 to
+  21474836.47; more than two decimal places and exponent notation are rejected. Other currency
+  exponents require an explicit future extension. Changing currency with existing rows is rejected;
+  there is no implicit exchange-rate conversion.
+- `excluded_markets` is a per-row array of uppercase two-letter country codes. Empty means no market
+  exclusions. Duplicate option combinations are rejected. Removing rows preserves their before/after
+  snapshots in the audit ledger. Whole-table saves preserve retained row IDs.
+- Only `store.settings` holders may mutate; reads require `store.view`. Each accepted type creation/edit
+  or price-table save records one audit entry in the same transaction. Failed validation, stale
+  revisions and unauthorized requests write neither catalog rows nor audit entries.
+- `0004_catalog.sql` is generated from Drizzle, with its composite-key unique index moved ahead of the
+  foreign key (Drizzle otherwise emits them in the opposite order).
+
 ## Migrations
 
 ```bash

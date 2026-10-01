@@ -55,6 +55,54 @@
   }
 }
 
+/* Inline price cells stay a table on desktop and become labelled rows on narrow screens. */
+.catalog-input {
+  @apply bg-paper text-ink border-line block h-11 w-full min-w-0 rounded-[7px] border px-3 text-[13px] disabled:bg-soft disabled:text-muted;
+}
+.catalog-input[aria-invalid="true"] {
+  @apply border-orange;
+}
+.catalog-table-wrap {
+  @apply border-line overflow-x-auto rounded-lg border;
+}
+.catalog-table th,
+.catalog-table td {
+  padding: 10px;
+}
+.catalog-table {
+  table-layout: fixed;
+}
+.catalog-table th:first-child {
+  width: 60px;
+}
+.catalog-table th:last-child {
+  width: 160px;
+}
+@media (max-width: 767px) {
+  .catalog-table,
+  .catalog-table tbody,
+  .catalog-table tr,
+  .catalog-table td {
+    display: block;
+  }
+  .catalog-table thead {
+    display: none;
+  }
+  .catalog-table tr {
+    padding: 12px;
+  }
+  .catalog-table td {
+    padding: 5px 0;
+  }
+  .catalog-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+}
+
 /* Mirrors the wireframe's 390px floor: every control stays at least 44px tall on phones. */
 @media (max-width: 420px) {
   button,

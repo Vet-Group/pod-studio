@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import {
   ROLE_PRESETS,
   STORE_PERMISSIONS,
@@ -75,12 +77,17 @@ export default async function StoreMembersPage({ params }: PageProps<'/stores/[s
         eyebrow="Stores & members"
         title="Manage stores and permissions."
         actions={
-          <InviteDialog
-            storeId={store.id}
-            storeName={store.name}
-            roles={roles}
-            grantable={permissionOptions.filter((p) => viewer.grantable.includes(p.value))}
-          />
+          <>
+            <Button asChild className="min-h-11">
+              <Link href={`/stores/${store.id}/catalog`}>Catalog</Link>
+            </Button>
+            <InviteDialog
+              storeId={store.id}
+              storeName={store.name}
+              roles={roles}
+              grantable={permissionOptions.filter((p) => viewer.grantable.includes(p.value))}
+            />
+          </>
         }
       >
         Each store has one owner. A person can own multiple stores.
