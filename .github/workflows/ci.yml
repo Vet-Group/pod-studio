@@ -94,7 +94,7 @@ jobs:
             echo "S3_SECRET_ACCESS_KEY=$(openssl rand -hex 16)"
             echo "BETTER_AUTH_SECRET=$(openssl rand -base64 32)"
             echo "SHOPIFY_ENCRYPTION_KEYS=v1:$(openssl rand -base64 32)"
-            echo "SHOPIFY_ENCRYPTION_ACTIVE_KEY=v1"
+            echo "SHOPIFY_ENCRYPTION_ACTIVE_VERSION=v1"
             echo "HTTP_PORT=18080"
             echo "HTTPS_PORT=18443"
           } > "$RUNNER_TEMP/prod.env"

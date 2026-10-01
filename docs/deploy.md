@@ -54,7 +54,7 @@ All secrets live in `ops/prod/.env` (mode 600, never committed). Generate them w
 | `POSTGRES_PASSWORD` | Database owner | Change in Postgres (`alter role`) first, then `.env` |
 | `MINIO_ROOT_PASSWORD` | MinIO admin, used only by `minio-init` and backups | Set only on first start; later changes need `mc admin` |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | App's bucket-scoped account | Edit `.env`, `up -d`; `minio-init` resets the secret |
-| `SHOPIFY_ENCRYPTION_KEYS` / `_ACTIVE_KEY` | Encrypts Shopify credentials at rest | Add a new version, make it active, keep old ones listed until re-encrypted |
+| `SHOPIFY_ENCRYPTION_KEYS` / `_ACTIVE_VERSION` | Encrypts Shopify credentials at rest | Add a new version, make it active, keep old ones listed until re-encrypted |
 
 ## Upgrading
 
