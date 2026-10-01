@@ -6,7 +6,9 @@ import {
   createAuth,
   createInvite,
   createUserWithTemporaryPassword,
+  loginLocation,
   resolveRequestAccess,
+  safeNextPath,
   type Auth,
   type Principal,
 } from '../../src/auth';
@@ -133,7 +135,26 @@ describe('temporary password gate', () => {
       expect(resolveRequestAccess(pathname, flagged), pathname).toEqual({ kind: 'allow' });
     }
     expect(resolveRequestAccess('/orders', { mustChangePassword: false })).toEqual({ kind: 'allow' });
-    expect(resolveRequestAccess('/orders', null)).toEqual({ kind: 'allow' });
+  });
+
+  it('sends anonymous visitors to sign-in, returning them to the page they asked for', () => {
+    expect(resolveRequestAccess('/orders', null)).toEqual({ kind: 'redirect', location: '/login?next=%2Forders' });
+    expect(resolveRequestAccess('/review', null, '?id=7')).toEqual({ kind: 'redirect', location: '/login?next=%2Freview%3Fid%3D7' });
+    expect(resolveRequestAccess('/', undefined)).toEqual({ kind: 'redirect', location: '/login' });
+    expect(resolveRequestAccess('/api/stores', null)).toEqual({ kind: 'unauthorized', code: 'UNAUTHORIZED' });
+    for (const pathname of ['/login', '/invite/some-token', '/api/auth/sign-in/email', '/api/health']) {
+      expect(resolveRequestAccess(pathname, null), pathname).toEqual({ kind: 'allow' });
+    }
+    // A signed-in user never sees the sign-in form again.
+    expect(resolveRequestAccess('/login', { mustChangePassword: false })).toEqual({ kind: 'redirect', location: '/' });
+  });
+
+  it('only returns to paths on this site after sign-in (no open redirect)', () => {
+    for (const value of ['https://evil.example', '//evil.example', '/\\evil.example', 'evil', '', null, '/a\nb']) {
+      expect(safeNextPath(value), String(value)).toBe('/');
+    }
+    expect(safeNextPath('/review?id=7')).toBe('/review?id=7');
+    expect(loginLocation('//evil.example')).toBe('/login');
   });
 
   it('lifts the gate once the password is changed, keeping only the current session', async () => {

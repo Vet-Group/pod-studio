@@ -16,7 +16,13 @@ export {
   type StoreGrant,
   type StoreMembership,
 } from './invites';
-export { changePassword, createUserWithTemporaryPassword, type ChangePasswordInput, type CreateUserInput } from './accounts';
+export {
+  changePassword,
+  createFirstAdmin,
+  createUserWithTemporaryPassword,
+  type ChangePasswordInput,
+  type CreateUserInput,
+} from './accounts';
 export {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
@@ -37,5 +43,15 @@ export {
   type StorePermission,
   type StoreRole,
 } from './roles';
-export { AUTH_BASE_PATH, PASSWORD_CHANGE_AUTH_PATHS, PASSWORD_CHANGE_PATH, resolveRequestAccess, type RequestAccess } from './gate';
+export {
+  AUTH_BASE_PATH,
+  INVITE_PATH,
+  LOGIN_PATH,
+  PASSWORD_CHANGE_AUTH_PATHS,
+  PASSWORD_CHANGE_PATH,
+  loginLocation,
+  resolveRequestAccess,
+  safeNextPath,
+  type RequestAccess,
+} from './gate';
 export { PASSWORD_CHANGE_REQUIRED, authOptions, createAuth, type Auth, type AuthConfig } from './auth';

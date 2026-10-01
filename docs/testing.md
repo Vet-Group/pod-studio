@@ -11,14 +11,17 @@ pnpm services:up      # Postgres 16 (port 54316) + MinIO (port 19000, console 19
 pnpm dev              # webapp: http://localhost:3100
 ```
 
-`pnpm dev` does not yet read the database: the webapp currently has a navigation shell for 7 screens, a responsive layout and colors from `design/wireframes/index.html`. Each screen is a placeholder page that identifies the task that will build it. Login arrives in P1-03.
+`pnpm dev` serves the navigation shell for 7 screens (placeholders that name the task building each one) behind sign-in. Every page except `/login` and `/invite/<token>` needs a session; an account with a temporary password sees only `/change-password` until it picks its own.
 
 Schemas and migrations are available from P1-02 (`packages/db`, see [database.md](database.md)). To set up the development database:
 
 ```bash
 cp apps/web/.env.example apps/web/.env.local   # once; contains local values only
 pnpm db:migrate                                # apply migrations to pod_dev
+pnpm auth:create-admin --email you@example.com --name "Your Name"
 ```
+
+`auth:create-admin` creates the first admin of an empty database and prints a one-time temporary password; sign in at `/login` and choose your own. It refuses once any admin exists: every later account comes from an admin, through an invite link or a temporary password (ADR 0002).
 
 Quick check: `curl http://localhost:3100/api/health` returns `{"ok":true,...}`.
 
@@ -34,7 +37,7 @@ Quick check: `curl http://localhost:3100/api/health` returns `{"ok":true,...}`.
 | `pnpm test:e2e` | Playwright at 1440px and 390px: navigation, 404, no horizontal overflow, axe WCAG 2.2 AA, 44px tap targets on mobile |
 | `pnpm check` | `typecheck` + `lint` + `test` |
 
-`pnpm test` automatically runs `docker compose up -d --wait` if Postgres or MinIO is not running. Set `TEST_SKIP_SERVICES_UP=1` to manage services yourself. `pnpm test:e2e` automatically starts `next dev` on port 3100, or reuses a running server.
+`pnpm test` automatically runs `docker compose up -d --wait` if Postgres or MinIO is not running. Set `TEST_SKIP_SERVICES_UP=1` to manage services yourself. `pnpm test:e2e` starts its own `next dev` on port 3100 (stop any other server on that port first) against a fresh `pod_e2e_<random>_test` database that it creates, migrates, seeds with an admin and drops afterwards (`tests/e2e/global-setup.ts`). It never reads `apps/web/.env.local` values for the database or auth secret, so E2E cannot touch `pod_dev`.
 
 ## Test data isolation
 

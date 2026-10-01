@@ -11,6 +11,9 @@ const screens = [
   ['niche', 'Niche data'],
 ] as const;
 
+// Every app screen needs a session now (P1-03); reuse the admin signed in by global-setup.
+test.use({ storageState: process.env.POD_E2E_ADMIN_STATE });
+
 test('the root redirects to the design library', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/studio$/);

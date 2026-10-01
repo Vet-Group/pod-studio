@@ -7,7 +7,8 @@
     "./auth": "./src/auth/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "create-admin": "node --env-file-if-exists=../../apps/web/.env.local --import tsx src/cli/create-admin.ts"
   },
   "dependencies": {
     "@pod-studio/db": "workspace:*",
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@types/node": "24.19.0",
     "postgres": "3.4.9",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.2"
   }
