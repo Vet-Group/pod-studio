@@ -50,6 +50,13 @@
       "when": 1790895546699,
       "tag": "0006_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790895667497,
+      "tag": "0007_shopify_connection",
+      "breakpoints": true
     }
   ]
 }
