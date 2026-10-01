@@ -7,18 +7,18 @@
     "docs/adr/0002-access-model.md",
     "docs/adr/0003-niche-skill-builder.md",
     "packages/contracts/README.md",
-    "Downloads/prd-rebuild.md (reference only)"
+    "prd-rebuild.md (shared PRD, kept outside this repo)"
   ],
   "tasks": [
     {
       "id": "P1-01",
       "phase": "P1",
-      "title": "Monorepo, tooling và test harness cô lập",
+      "title": "Monorepo, tooling and isolated test harness",
       "owner": "web",
       "depends_on": [],
       "screens": [],
       "prd_refs": [],
-      "objective": "Dựng khung pnpm monorepo và bộ test chạy local từ clean checkout: mỗi test worker có database Postgres 16 riêng, bucket MinIO riêng, có guard từ chối URL production.",
+      "objective": "Set up the pnpm monorepo foundation and a test suite that runs locally from a clean checkout: each test worker has its own Postgres 16 database and MinIO bucket, with a guard that rejects production URLs.",
       "paths": [
         "package.json",
         "pnpm-workspace.yaml",
@@ -37,30 +37,30 @@
           "file": "tests/support/guard.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "DATABASE_URL trỏ host không phải localhost hoặc tên DB không có hậu tố _test thì test dừng ngay",
-            "S3 endpoint không phải MinIO local thì từ chối"
+            "Tests stop immediately if DATABASE_URL points to a host other than localhost or the database name does not end in _test",
+            "Reject S3 endpoints other than local MinIO"
           ]
         },
         {
           "file": "tests/support/db.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "2 test worker song song tạo 2 database khác nhau, ghi cùng id không va nhau",
-            "Cleanup chỉ xoá database do chính test tạo"
+            "2 parallel test workers create 2 different databases; writes with the same id do not conflict",
+            "Cleanup deletes only databases created by the test itself"
           ]
         }
       ],
       "done": [
-        "`pnpm test` chạy xanh trên máy mới chỉ với Docker + Node",
-        "Guard production có test đỏ trước khi xanh",
-        "docs/testing.md có lệnh từ clean checkout"
+        "`pnpm test` passes on a new machine with only Docker + Node",
+        "The production guard has a failing test before it passes",
+        "docs/testing.md includes commands to run from a clean checkout"
       ],
       "status": "planned"
     },
     {
       "id": "P1-02",
       "phase": "P1",
-      "title": "Nền DB: Drizzle schema, migration và quy ước",
+      "title": "Database foundation: Drizzle schema, migrations and conventions",
       "owner": "web",
       "depends_on": [
         "P1-01"
@@ -69,7 +69,7 @@
       "prd_refs": [
         "§4.1-4.4"
       ],
-      "objective": "Thiết lập packages/db với quy ước PRD (PK text nanoid, không Postgres enum, timestamptz), migration có thứ tự, bảng users, sessions, stores, audit_log khung.",
+      "objective": "Set up packages/db with the PRD conventions (text nanoid PKs, no Postgres enums, timestamptz), ordered migrations, and foundation tables for users, sessions, stores, audit_log.",
       "paths": [
         "packages/db/src/schema/index.ts",
         "packages/db/src/schema/users.ts",
@@ -84,28 +84,28 @@
           "file": "packages/db/test/migrations.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Chạy toàn bộ migration trên DB rỗng thành công, chạy lại lần 2 không đổi gì",
-            "Không có kiểu enum Postgres nào trong schema sau migrate (truy vấn pg_type)"
+            "All migrations run successfully on an empty database; a second run changes nothing",
+            "No Postgres enum types exist in the schema after migration (query pg_type)"
           ]
         },
         {
           "file": "packages/db/test/ids.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "newId() sinh chuỗi đúng pattern ^[A-Za-z0-9_-]{8,40}$ của contract"
+            "newId() generates strings matching the contract's pattern ^[A-Za-z0-9_-]{8,40}$"
           ]
         }
       ],
       "done": [
-        "Migration chạy được trên DB rỗng và idempotent",
-        "Schema khớp quy ước, có test kiểm"
+        "Migrations run on an empty database and are idempotent",
+        "The schema follows the conventions, with tests to verify them"
       ],
       "status": "planned"
     },
     {
       "id": "P1-03",
       "phase": "P1",
-      "title": "Đăng nhập email + mật khẩu, tài khoản do admin tạo, lời mời",
+      "title": "Email and password sign-in, admin-created accounts, invites",
       "owner": "web",
       "depends_on": [
         "P1-02"
@@ -116,7 +116,7 @@
       "prd_refs": [
         "§10"
       ],
-      "objective": "better-auth với email + mật khẩu, session lưu Postgres, tắt đăng ký công khai. Admin tạo tài khoản với mật khẩu tạm (bắt đổi lần đầu) hoặc tạo link mời; người được mời tự khai tên và mật khẩu. Không cần SMTP.",
+      "objective": "Use better-auth with email and password, sessions stored in Postgres, and public signup disabled. Admins create accounts with temporary passwords (a change is required on first sign-in) or create invite links; invitees enter their own names and passwords. SMTP is not required.",
       "paths": [
         "packages/core/src/auth/auth.ts",
         "packages/core/src/auth/invites.ts",
@@ -132,41 +132,41 @@
           "file": "packages/core/test/auth/invites.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Token chỉ lưu dạng hash, không có bản rõ trong DB",
-            "Dùng lại token đã chấp nhận: bị từ chối (replay)",
-            "Token hết hạn 7 ngày: bị từ chối",
-            "Token đã thu hồi: bị từ chối",
-            "Người mời không cấp được quyền mình không có (leo quyền qua lời mời)",
-            "Lời mời vào store chỉ tạo được bởi người có store.members của đúng store đó"
+            "Tokens are stored only as hashes, with no plaintext in the database",
+            "Reusing an accepted token is rejected (replay)",
+            "A token expired after 7 days is rejected",
+            "A revoked token is rejected",
+            "Inviters cannot grant permissions they do not have (privilege escalation through invites)",
+            "Only someone with store.members for the target store can create an invite to that store"
           ]
         },
         {
           "file": "packages/core/test/auth/signup.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Gọi thẳng endpoint sign-up của better-auth: trả lỗi, không tạo user",
-            "Tài khoản mật khẩu tạm bị chặn mọi trang trừ đổi mật khẩu"
+            "Calling the better-auth sign-up endpoint directly returns an error and creates no user",
+            "Accounts with temporary passwords are blocked from every page except the password change page"
           ]
         },
         {
           "file": "tests/e2e/auth.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Admin tạo lời mời, copy link, người mới mở link, đặt mật khẩu, vào được app",
-            "Đăng xuất thì session bị thu hồi trong DB"
+            "An admin creates an invite and copies the link; a new user opens the link, sets a password, and can enter the app",
+            "Signing out revokes the session in the database"
           ]
         }
       ],
       "done": [
-        "Toàn bộ kịch bản bypass, replay, hết hạn, thu hồi, leo quyền có test đỏ trước khi xanh",
-        "Không có đường tạo user nào ngoài admin và lời mời"
+        "All bypass, replay, expiry, revocation, and privilege escalation scenarios have failing tests before they pass",
+        "No user creation path exists outside admin creation and invites"
       ],
       "status": "planned"
     },
     {
       "id": "P1-04",
       "phase": "P1",
-      "title": "Phân quyền theo store, chuyển owner và audit log",
+      "title": "Store-scoped permissions, ownership transfer and audit log",
       "owner": "web",
       "depends_on": [
         "P1-03"
@@ -175,7 +175,7 @@
         5
       ],
       "prd_refs": [],
-      "objective": "Bảng store_members với preset role và permissions[]; hàm can(principal, permission, {storeId}) trong packages/core là nơi kiểm quyền duy nhất; audit_log ghi actor_user_id, actor_kind cho mọi thay đổi quyền và hành động nhạy cảm. Màn Stores và thành viên (screen 5).",
+      "objective": "Use a store_members table with preset roles and permissions[]; can(principal, permission, {storeId}) in packages/core is the sole permission check; audit_log records actor_user_id and actor_kind for every permission change and sensitive action. Stores & members screen (screen 5).",
       "paths": [
         "packages/core/src/access/permissions.ts",
         "packages/core/src/access/can.ts",
@@ -192,43 +192,43 @@
           "file": "packages/core/test/access/can.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Ma trận preset x permission khớp ADR 0002 (test theo bảng)",
-            "Admin hệ thống không có product.push hay product.publish ở store chưa được cấp",
-            "seller_support mặc định không có product.publish",
-            "Quyền của store A không dùng được ở store B"
+            "The preset x permission matrix matches ADR 0002 (table-driven tests)",
+            "System admins do not have product.push or product.publish in stores where they have not been granted those permissions",
+            "seller_support does not have product.publish by default",
+            "Permissions for store A cannot be used in store B"
           ]
         },
         {
           "file": "packages/core/test/access/members.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Chỉ owner cấp được product.publish",
-            "Không ai cấp được quyền mình không có",
-            "Không xoá hay hạ quyền owner cuối cùng",
-            "Mỗi store đúng 1 owner (ràng buộc DB, 2 transaction đua nhau)",
-            "Chuyển owner chỉ owner hoặc admin làm được, ghi audit_log"
+            "Only the owner can grant product.publish",
+            "No one can grant permissions they do not have",
+            "The last owner cannot be deleted or demoted",
+            "Each store has exactly 1 owner (database constraint, 2 racing transactions)",
+            "Only the owner or an admin can transfer ownership, with an audit_log entry"
           ]
         },
         {
           "file": "tests/e2e/stores-members.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Owner bật publish cho co_leader, co_leader thấy nút Public; tắt đi thì nút biến mất",
-            "Trạng thái quyền hiển thị bằng chữ và icon, không chỉ bằng màu"
+            "The owner enables publish for co_leader, and co_leader sees the Public button; disabling it makes the button disappear",
+            "Permission states are shown with text and icons, not color alone"
           ]
         }
       ],
       "done": [
-        "Mọi server action có store đều đi qua can()",
-        "Ma trận quyền có test theo bảng",
-        "Thay đổi quyền nào cũng có dòng audit_log"
+        "Every store-related server action goes through can()",
+        "The permission matrix has table-driven tests",
+        "Every permission change has an audit_log entry"
       ],
       "status": "planned"
     },
     {
       "id": "P1-05",
       "phase": "P1",
-      "title": "Object storage, assets và thư viện design theo store",
+      "title": "Object storage, assets and per-store design library",
       "owner": "web",
       "depends_on": [
         "P1-04"
@@ -239,7 +239,7 @@
       "prd_refs": [
         "§13"
       ],
-      "objective": "Upload trực tiếp lên S3 bằng presigned PUT, kiểm sha256, dedupe theo (store_id, sha256), đọc ảnh qua presigned GET ngắn hạn. Design mặc định thuộc phạm vi store cho tới khi chốt policy dùng chung.",
+      "objective": "Upload directly to S3 using presigned PUT, verify sha256, deduplicate by (store_id, sha256), and read images through short-lived presigned GET URLs. Designs are store-scoped by default until a shared-use policy is finalized.",
       "paths": [
         "packages/core/src/assets/storage.ts",
         "packages/core/src/assets/assets.ts",
@@ -253,31 +253,31 @@
           "file": "packages/core/test/assets/assets.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Upload file có sha256 khai báo sai: finalize bị từ chối, object bị xoá",
-            "Cùng file upload 2 lần trong 1 store: 1 asset",
-            "Người của store B không lấy được presigned URL ảnh store A",
-            "Presigned URL hết hạn đúng thời gian cấu hình"
+            "Uploading a file with an incorrect declared sha256 causes finalization to be rejected and the object to be deleted",
+            "Uploading the same file 2 times in 1 store creates 1 asset",
+            "Members of store B cannot obtain presigned URLs for images in store A",
+            "Presigned URLs expire at the configured time"
           ]
         },
         {
           "file": "packages/core/test/designs/scope.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Design mặc định chỉ hiện trong store đã upload",
-            "Chia sẻ design sang store khác là thao tác có quyền và có audit_log"
+            "By default, a design appears only in the store where it was uploaded",
+            "Sharing a design with another store requires permission and an audit_log entry"
           ]
         }
       ],
       "done": [
-        "Không có đường đọc file nào bỏ qua kiểm quyền store",
-        "Dedupe và checksum có test"
+        "No file read path bypasses store permission checks",
+        "Deduplication and checksum verification have tests"
       ],
       "status": "planned"
     },
     {
       "id": "P1-06",
       "phase": "P1",
-      "title": "Bảng lease job AI, scheduler công bằng và reaper",
+      "title": "AI job lease table, fair scheduler and reaper",
       "owner": "web",
       "depends_on": [
         "P1-05"
@@ -289,7 +289,7 @@
         "§5.1",
         "§8.5"
       ],
-      "objective": "Bảng generation_jobs với lease_token, lease_expires_at, attempt, error_class, priority; claim bằng FOR UPDATE SKIP LOCKED theo thứ tự tier, xoay vòng store, xoay vòng người yêu cầu, tuổi job; reaper trả job hết lease về hàng đợi; bảng provider_accounts và workers.",
+      "objective": "Use a generation_jobs table with lease_token, lease_expires_at, attempt, error_class, priority; claim with FOR UPDATE SKIP LOCKED ordered by tier, store rotation, requester rotation, and job age; the reaper returns jobs with expired leases to the queue; use provider_accounts and workers tables.",
       "paths": [
         "packages/db/src/schema/generation-jobs.ts",
         "packages/db/src/schema/provider-accounts.ts",
@@ -304,41 +304,41 @@
           "file": "packages/core/test/generation/claim.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "50 claim song song trên 20 job: không job nào bị claim 2 lần",
-            "Store A có 200 job, store B có 2 job: job của B được claim trong 2 lượt đầu",
-            "Account thiếu provider skill bắt buộc không nhận job cần skill đó",
-            "Account đang cooldown hoặc hết phiên không claim được"
+            "50 parallel claims on 20 jobs: no job is claimed 2 times",
+            "Store A has 200 jobs and store B has 2 jobs: B's jobs are claimed within the first 2 turns",
+            "An account missing a required provider skill does not receive jobs requiring that skill",
+            "An account in cooldown or with an expired session cannot claim jobs"
           ]
         },
         {
           "file": "packages/core/test/generation/transitions.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Bảng error class: mỗi class ra đúng trạng thái job, account và có tính attempt hay không",
-            "Transition dùng UPDATE có guard status + lease_token; 2 update đua nhau chỉ 1 thắng",
-            "Huỷ thắng hoàn thành: cancel ghi trước thì complete trả job_not_active"
+            "Error class table: each class produces the correct job state, account state, and decision on whether to count an attempt",
+            "Transitions use UPDATE guarded by status + lease_token; only 1 of 2 racing updates wins",
+            "Cancellation wins over completion: if cancel is recorded first, complete returns job_not_active"
           ]
         },
         {
           "file": "apps/jobs/test/lease-reaper.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Job hết lease không complete/fail: về queued, tính 1 attempt transient",
-            "Vượt maxAttempts: failed; bị trả về quá N lần vì lỗi account: failed với lý do không có account khoẻ"
+            "A job whose lease expires without complete/fail returns to queued and counts as 1 transient attempt",
+            "Exceeding maxAttempts results in failed; being returned more than N times due to account errors results in failed with the reason that no healthy account is available"
           ]
         }
       ],
       "done": [
-        "Không double claim dưới tải song song có test",
-        "Fairness theo store có test",
-        "Mọi transition là UPDATE có guard"
+        "Tests verify no double claims under parallel load",
+        "Store-level fairness has tests",
+        "Every transition is a guarded UPDATE"
       ],
       "status": "planned"
     },
     {
       "id": "P1-07",
       "phase": "P1",
-      "title": "Worker API v2 routes và token worker",
+      "title": "Worker API v2 routes and worker tokens",
       "owner": "both",
       "depends_on": [
         "P1-06"
@@ -347,7 +347,7 @@
       "prd_refs": [
         "§8.5"
       ],
-      "objective": "Hiện thực đúng packages/contracts (OpenAPI 3.1, X-Contract-Version: 2) dưới /api/worker/v2: register, claim long-poll, heartbeat, uploads, complete, fail, account status, skill version. Token riêng từng worker, lưu hash. ngatruong123 duyệt contract trước khi bắt đầu.",
+      "objective": "Implement packages/contracts exactly (OpenAPI 3.1, X-Contract-Version: 2) under /api/worker/v2: register, long-poll claim, heartbeat, uploads, complete, fail, account status, skill version. Each worker has its own token, stored as a hash. The worker team (ngatruong123) approves the contract before work begins.",
       "paths": [
         "apps/web/src/app/api/worker/v2/register/route.ts",
         "apps/web/src/app/api/worker/v2/claim/route.ts",
@@ -366,40 +366,40 @@
           "file": "tests/contract/worker-api.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Mọi response khớp schema OpenAPI (validate bằng Ajv từ packages/contracts)",
-            "Lease cũ: 409 lease_lost",
-            "Complete lặp lại cùng Idempotency-Key: trả kết quả lần đầu, không tạo kết quả trùng",
-            "Cùng key khác body: 422 idempotency_key_reused",
-            "uploadKey thiếu hoặc sha256 lệch: 422",
-            "Thiếu hoặc sai X-Contract-Version: 426",
-            "Token đã thu hồi: 401"
+            "Every response matches the OpenAPI schema (validated with Ajv from packages/contracts)",
+            "An old lease returns 409 lease_lost",
+            "Repeating complete with the same Idempotency-Key returns the first result and creates no duplicate results",
+            "The same key with a different body returns 422 idempotency_key_reused",
+            "A missing uploadKey or mismatched sha256 returns 422",
+            "A missing or incorrect X-Contract-Version returns 426",
+            "A revoked token returns 401"
           ]
         },
         {
           "file": "tests/contract/cancel-race.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Cancel và complete gửi đồng thời 100 lần: job luôn kết thúc ở đúng 1 trạng thái, file upload của nhánh thua được dọn"
+            "Cancel and complete are sent simultaneously 100 times: the job always ends in exactly 1 state, and uploaded files from the losing branch are cleaned up"
           ]
         }
       ],
       "done": [
-        "Contract test xanh trên toàn bộ ví dụ trong packages/contracts/examples",
-        "ngatruong123 xác nhận contract bằng văn bản (comment/issue)"
+        "Contract tests pass for all examples in packages/contracts/examples",
+        "The worker team (ngatruong123) confirms the contract in writing (comment/issue)"
       ],
       "status": "planned"
     },
     {
       "id": "P1-08",
       "phase": "P1",
-      "title": "tools/fake-worker theo contract",
+      "title": "tools/fake-worker per the contract",
       "owner": "web",
       "depends_on": [
         "P1-07"
       ],
       "screens": [],
       "prd_refs": [],
-      "objective": "Worker giả bằng Node chỉ nói chuyện qua Worker API v2 và presigned URL, có kịch bản: thành công, chậm có heartbeat, rate limit, hết phiên, crash giữa chừng, trả ảnh sai checksum. Dùng cho dev, E2E và đo tải.",
+      "objective": "A Node fake worker communicates only through Worker API v2 and presigned URLs, with scenarios for success, slow execution with heartbeat, rate limiting, session expiry, a mid-run crash, and returning an image with an incorrect checksum. Used for development, E2E, and load testing.",
       "paths": [
         "tools/fake-worker/src/index.ts",
         "tools/fake-worker/src/scenarios.ts",
@@ -411,23 +411,23 @@
           "file": "tools/fake-worker/test/scenarios.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Kịch bản success: job về succeeded, có đủ ảnh",
-            "Kịch bản rate_limited: account vào cooldown, job về queued, attempt không tăng",
-            "Kịch bản crash: reaper trả job về hàng đợi sau lease",
-            "Worker từ chối URL ngoài storageOrigins"
+            "success scenario: the job reaches succeeded with all images present",
+            "rate_limited scenario: the account enters cooldown, the job returns to queued, and attempt does not increase",
+            "crash scenario: the reaper returns the job to the queue after the lease expires",
+            "The worker rejects URLs outside storageOrigins"
           ]
         }
       ],
       "done": [
-        "Chạy được bằng 1 lệnh, cấu hình kịch bản bằng tham số",
-        "Không import code nội bộ của apps/web (chỉ dùng contracts)"
+        "Runs with 1 command, with scenarios configured through arguments",
+        "Does not import internal apps/web code (uses only contracts)"
       ],
       "status": "planned"
     },
     {
       "id": "P1-09",
       "phase": "P1",
-      "title": "Màn Studio: thư viện design, upload, tạo job, hàng đợi",
+      "title": "Studio screen: design library, upload, job creation, queue",
       "owner": "web",
       "depends_on": [
         "P1-08"
@@ -438,7 +438,7 @@
       "prd_refs": [
         "§11.3"
       ],
-      "objective": "Screen 1 theo prototype: lưới design ảo hoá, lọc và tìm kiếm qua URL (nuqs), upload hàng loạt cả thư mục, drawer tạo mockup/redesign chọn skill và số lượng, drawer hàng đợi có vị trí, trạng thái, huỷ, chạy lại.",
+      "objective": "Screen 1 follows the prototype: a virtualized design grid, URL-based filtering and search (nuqs), bulk uploads including entire folders, a mockup/redesign creation drawer for selecting a skill and quantity, and a queue drawer with position, status, cancel, and rerun.",
       "paths": [
         "apps/web/src/app/(app)/studio/page.tsx",
         "apps/web/src/features/studio/design-grid.tsx",
@@ -452,31 +452,31 @@
           "file": "tests/e2e/studio.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Upload 20 file, 1 file trùng: 19 design mới, báo trùng rõ ràng",
-            "Tạo job mockup 10 ảnh: job hiện trong hàng đợi với vị trí",
-            "Huỷ job đang chạy: trạng thái chuyển Đã huỷ",
-            "Lọc và tìm kiếm giữ nguyên sau reload (URL state)"
+            "Upload 20 files with 1 duplicate: 19 new designs, with the duplicate clearly reported",
+            "Create a mockup job for 10 images: the job appears in the queue with its position",
+            "Cancel a running job: its displayed status changes to Cancelled",
+            "Filtering and search persist after reload (URL state)"
           ]
         },
         {
           "file": "tests/e2e/studio-a11y.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "axe không có lỗi nghiêm trọng",
-            "Drawer bẫy focus, Esc đóng và trả focus về nút mở"
+            "axe reports no serious violations",
+            "The drawer traps focus; Esc closes it and returns focus to the opening button"
           ]
         }
       ],
       "done": [
-        "Luồng upload -> tạo job -> thấy trong hàng đợi chạy được với fake-worker",
-        "Lưới 1.000 design cuộn mượt (virtual list)"
+        "The upload -> create job -> view in queue flow works with fake-worker",
+        "A grid of 1,000 designs scrolls smoothly (virtual list)"
       ],
       "status": "planned"
     },
     {
       "id": "P1-10",
       "phase": "P1",
-      "title": "Màn Duyệt ảnh",
+      "title": "Image review screen",
       "owner": "web",
       "depends_on": [
         "P1-09"
@@ -488,7 +488,7 @@
         "§5.1",
         "§11.3"
       ],
-      "objective": "Screen 2: design gốc đặt cạnh kết quả, phím tắt A duyệt, R loại (bắt buộc lý do), mũi tên chuyển ảnh, duyệt hàng loạt; lý do loại được lưu để đo chất lượng skill.",
+      "objective": "Screen 2: the original design is shown beside the results; keyboard shortcuts A to approve, R to reject (a reason is required), arrows to switch images, and bulk approval; rejection reasons are stored to measure skill quality.",
       "paths": [
         "apps/web/src/app/(app)/review/page.tsx",
         "apps/web/src/features/review/review-stage.tsx",
@@ -501,31 +501,31 @@
           "file": "packages/core/test/generation/review.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Người không có quyền ở store của design không duyệt được",
-            "Loại mà không có lý do: bị từ chối"
+            "Users without permission in the design's store cannot approve it",
+            "Rejection without a reason is refused"
           ]
         },
         {
           "file": "tests/e2e/review.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "A duyệt, R mở hộp lý do, mũi tên chuyển ảnh",
-            "Phím tắt không kích hoạt khi đang gõ trong ô nhập",
-            "Trạng thái duyệt hiển thị bằng chữ + icon, không chỉ bằng màu",
-            "Không tràn ngang ở 390px"
+            "A approves, R opens the reason dialog, and arrows switch images",
+            "Keyboard shortcuts do not activate while typing in an input",
+            "Review states are shown with text + icons, not color alone",
+            "No horizontal overflow at 390px"
           ]
         }
       ],
       "done": [
-        "Duyệt 50 ảnh chỉ bằng bàn phím được",
-        "Lý do loại lưu kèm skill_version_id của job"
+        "50 images can be reviewed using only the keyboard",
+        "Rejection reasons are stored with the job's skill_version_id"
       ],
       "status": "planned"
     },
     {
       "id": "P1-11",
       "phase": "P1",
-      "title": "Trạng thái realtime (SSE) và ghi usage_events",
+      "title": "Realtime status (SSE) and usage_events recording",
       "owner": "web",
       "depends_on": [
         "P1-07",
@@ -538,7 +538,7 @@
       "prd_refs": [
         "§14"
       ],
-      "objective": "SSE cấp theo store, nguồn là Postgres LISTEN/NOTIFY sau commit; mỗi job kết thúc ghi usage_events (job_id, job_type, provider, account_id, requester_id, store_id, store_owner_id_at_time, units). Không có giới hạn hay quota.",
+      "objective": "Store-scoped SSE is sourced from Postgres LISTEN/NOTIFY after commit; each finished job records usage_events (job_id, job_type, provider, account_id, requester_id, store_id, store_owner_id_at_time, units). There are no limits or quotas.",
       "paths": [
         "apps/web/src/app/api/events/route.ts",
         "packages/core/src/events/notify.ts",
@@ -551,29 +551,29 @@
           "file": "packages/core/test/usage/record.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Job succeeded ghi đúng 1 usage_event, lặp complete không ghi thêm",
-            "Owner đổi sau đó thì usage cũ vẫn giữ store_owner_id_at_time ban đầu"
+            "A succeeded job records exactly 1 usage_event; repeating complete records no additional event",
+            "If the owner changes later, previous usage retains the original store_owner_id_at_time"
           ]
         },
         {
           "file": "tests/integration/sse.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Client store A không nhận event của store B",
-            "Event chỉ bắn sau commit, rollback thì không bắn"
+            "A client for store A does not receive events for store B",
+            "Events are emitted only after commit; rollback emits no event"
           ]
         }
       ],
       "done": [
-        "Hàng đợi cập nhật không cần poll",
-        "Có truy vấn tổng hợp usage theo store và theo owner (chỉ đọc)"
+        "The queue updates without polling",
+        "Usage aggregation queries by store and by owner are available (read-only)"
       ],
       "status": "planned"
     },
     {
       "id": "P2-01",
       "phase": "P2",
-      "title": "Phân tích sản phẩm",
+      "title": "Product analysis",
       "owner": "web",
       "depends_on": [
         "P1-07",
@@ -583,7 +583,7 @@
         3
       ],
       "prd_refs": [],
-      "objective": "Job product_analysis theo contract: đầu vào design + niche + link đối thủ tuỳ chọn; đầu ra audience, dịp, keyword chính/phụ, góc bán, gợi ý product type và giá, cảnh báo IP. Kết quả làm context cho content.",
+      "objective": "A product_analysis job follows the contract: inputs are a design + niche + optional competitor link; outputs are audience, occasion, primary/secondary keywords, selling angle, product type and price suggestions, and IP warnings. Results provide context for content.",
       "paths": [
         "packages/core/src/analysis/analysis.ts",
         "packages/db/src/schema/product-analyses.ts",
@@ -595,27 +595,27 @@
           "file": "packages/core/test/analysis/analysis.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Payload sai schema ProductAnalysisPayload: job failed với input_invalid, không lưu rác",
-            "Cảnh báo IP mức high hiển thị nổi bật nhưng không chặn thao tác"
+            "A payload that does not match ProductAnalysisPayload causes the job to fail with input_invalid; no invalid data is stored",
+            "An IP warning at the high level is prominently displayed but does not block actions"
           ]
         },
         {
           "file": "tests/e2e/analysis.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Chạy phân tích với fake-worker, kết quả hiện đủ các mục"
+            "Run analysis with fake-worker; the results display all sections"
           ]
         }
       ],
       "done": [
-        "Phân tích gắn được vào job content làm context"
+        "Analysis can be attached to a content job as context"
       ],
       "status": "planned"
     },
     {
       "id": "P2-02",
       "phase": "P2",
-      "title": "Sinh và sửa content listing đa ngôn ngữ",
+      "title": "Generate and edit multilingual listing content",
       "owner": "web",
       "depends_on": [
         "P2-01",
@@ -627,7 +627,7 @@
       "prd_refs": [
         "§6.3"
       ],
-      "objective": "Job listing_content theo từng locale; locale lấy từ params, không lấy từ payload; truyền danh sách primary keyword đã dùng trong store; editor có bộ đếm giới hạn SEO, sinh lại từng trường, lịch sử phiên bản; bản sửa tay thắng bản sinh mới.",
+      "objective": "A listing_content job runs for each locale; the locale comes from params, not from the payload; pass the list of primary keywords already used in the store; the editor includes SEO limit counters, per-field regeneration, and version history; manual edits take precedence over newly generated content.",
       "paths": [
         "packages/core/src/listing/content.ts",
         "packages/core/src/listing/seo.ts",
@@ -640,35 +640,35 @@
           "file": "packages/core/test/listing/content.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Payload ghi locale khác params: lưu theo params",
-            "Keyword chính trùng keyword đã dùng trong store: cảnh báo",
-            "Bản sửa tay không bị job sinh sau ghi đè"
+            "The payload specifies a locale different from params: store according to params",
+            "A primary keyword duplicates a keyword already used in the store: show a warning",
+            "Manual edits are not overwritten by a later generation job"
           ]
         },
         {
           "file": "packages/core/test/listing/seo.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Quy tắc SEO theo PRD §6.3 thành test theo bảng"
+            "SEO rules from PRD §6.3 are covered by table-driven tests"
           ]
         },
         {
           "file": "tests/e2e/listing.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Sửa title, bộ đếm cập nhật, lưu, reload vẫn còn"
+            "Edit the title; the counter updates; save and reload, and the edit persists"
           ]
         }
       ],
       "done": [
-        "Mỗi locale có content hợp lệ trước khi cho push"
+        "Each locale has valid content before pushing is allowed"
       ],
       "status": "planned"
     },
     {
       "id": "P2-03",
       "phase": "P2",
-      "title": "Catalog: product type, bảng giá, variant",
+      "title": "Catalog: product types, price tables, variants",
       "owner": "web",
       "depends_on": [
         "P1-04"
@@ -680,7 +680,7 @@
         "§4.2",
         "§6.2"
       ],
-      "objective": "product_types, pricing_rules theo store; variant sinh từ bảng giá, không từ tích Descartes; thứ tự theo sort_order; excluded_markets theo từng dòng giá. Chỉ người có store.settings sửa được.",
+      "objective": "product_types and pricing_rules are store-scoped; variants are generated from the price table, not from a Cartesian product; ordered by sort_order; excluded_markets are specified per price row. Only users with store.settings can edit them.",
       "paths": [
         "packages/db/src/schema/catalog.ts",
         "packages/core/src/catalog/product-types.ts",
@@ -693,21 +693,21 @@
           "file": "packages/core/test/catalog/pricing.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Variant đúng bằng số dòng bảng giá, đúng thứ tự sort_order (bất biến §20.1)",
-            "Dòng giá thiếu option của type: bị từ chối",
-            "Người không có store.settings không sửa được bảng giá"
+            "The number of variants exactly matches the number of price table rows, in sort_order order (invariant §20.1)",
+            "A price row missing an option for its type is rejected",
+            "Users without store.settings cannot edit the price table"
           ]
         }
       ],
       "done": [
-        "Bảng giá sửa được dạng bảng, có validate"
+        "The price table is editable in a table view, with validation"
       ],
       "status": "planned"
     },
     {
       "id": "P2-04",
       "phase": "P2",
-      "title": "Tạo product từ kết quả đã duyệt",
+      "title": "Create products from approved results",
       "owner": "web",
       "depends_on": [
         "P1-10",
@@ -721,7 +721,7 @@
         "§6.4",
         "§5.3"
       ],
-      "objective": "Chọn design + ảnh đã duyệt, product type; SKU là tên file design bỏ đuôi; ảnh design làm featured; stage product suy ra theo PRD §5.3, tính theo batch không N+1.",
+      "objective": "Select a design + approved images and a product type; the SKU is the design filename without its extension; the design image is featured; product stage is derived according to PRD §5.3, calculated in batches rather than N+1.",
       "paths": [
         "packages/core/src/products/create.ts",
         "packages/core/src/products/stage.ts",
@@ -734,29 +734,29 @@
           "file": "packages/core/test/products/create.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "SKU bằng tên file bỏ đuôi, giống nhau mọi variant (bất biến §20.11)",
-            "Chỉ ảnh đã duyệt được chọn",
-            "Tạo lặp cùng nguồn: không tạo product trùng"
+            "The SKU equals the filename without its extension and is the same for all variants (invariant §20.11)",
+            "Only approved images can be selected",
+            "Repeated creation from the same source does not create duplicate products"
           ]
         },
         {
           "file": "packages/core/test/products/stage.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Các nhánh deriveStage theo PRD §5.3 thành test theo bảng",
-            "Danh sách 200 product tính stage bằng số truy vấn cố định"
+            "deriveStage branches from PRD §5.3 are covered by table-driven tests",
+            "Stages for a list of 200 products are calculated with a fixed number of queries"
           ]
         }
       ],
       "done": [
-        "Product tạo xong có đủ variant, ảnh, SKU"
+        "Created products have all variants, images, and SKUs"
       ],
       "status": "planned"
     },
     {
       "id": "P2-05",
       "phase": "P2",
-      "title": "Kết nối Shopify: credential mã hoá và client",
+      "title": "Shopify connection: encrypted credentials and client",
       "owner": "web",
       "depends_on": [
         "P1-04"
@@ -768,7 +768,7 @@
         "§7",
         "§6.1"
       ],
-      "objective": "Lưu client_secret và access token bằng AES-256-GCM (khoá từ env, có version); Shopify Admin GraphQL client có xử lý throttle; nút Test kết nối; stub Shopify xác định được cho test.",
+      "objective": "Store client_secret and access tokens using AES-256-GCM (a versioned key from env); the Shopify Admin GraphQL client handles throttling; include a Test connection button and a deterministic Shopify stub for tests.",
       "paths": [
         "packages/core/src/shopify/client.ts",
         "packages/core/src/shopify/crypto.ts",
@@ -782,28 +782,28 @@
           "file": "packages/core/test/shopify/crypto.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Mã hoá rồi giải mã đúng; sửa 1 byte ciphertext thì giải mã lỗi",
-            "Log và lỗi không bao giờ chứa secret (quét chuỗi)"
+            "Encryption followed by decryption returns the original value; changing 1 byte of ciphertext causes decryption to fail",
+            "Logs and errors never contain secrets (string scan)"
           ]
         },
         {
           "file": "packages/core/test/shopify/client.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Throttle từ Shopify: chờ và thử lại có giới hạn",
-            "Chỉ owner hoặc người có store.settings xem/sửa credential"
+            "Shopify throttling triggers a wait and bounded retries",
+            "Only the owner or users with store.settings can view/edit credentials"
           ]
         }
       ],
       "done": [
-        "Không có secret dạng rõ trong DB, log, response"
+        "No plaintext secrets in the database, logs, or responses"
       ],
       "status": "planned"
     },
     {
       "id": "P2-06",
       "phase": "P2",
-      "title": "Push dry-run và snapshot",
+      "title": "Push dry-run and snapshots",
       "owner": "web",
       "depends_on": [
         "P2-02",
@@ -817,7 +817,7 @@
         "§6.5",
         "§7.4"
       ],
-      "objective": "Dry-run dựng toàn bộ input push (productSet, media, bản dịch, market, sales channel) từ snapshot content tại thời điểm bấm, so với dữ liệu đang có trên Shopify, hiện diff. Đổi giá hoặc content sau dry-run thì dry-run hết hiệu lực.",
+      "objective": "A dry-run builds all push inputs (productSet, media, translations, markets, sales channels) from a content snapshot taken when the button is clicked, compares them with existing Shopify data, and displays the diff. Price or content changes after the dry-run invalidate it.",
       "paths": [
         "packages/core/src/push/plan.ts",
         "packages/core/src/push/snapshot.ts",
@@ -829,21 +829,21 @@
           "file": "packages/core/test/push/plan.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Snapshot khoá content tại thời điểm push (bất biến §20.10)",
-            "Đổi giá sau dry-run: dry-run bị đánh dấu cũ, không cho push",
-            "Dry-run không gọi mutation nào tới Shopify stub"
+            "The snapshot locks content at push time (invariant §20.10)",
+            "Changing prices after a dry-run marks it as stale and prevents pushing",
+            "A dry-run calls no mutations on the Shopify stub"
           ]
         }
       ],
       "done": [
-        "Không push được nếu chưa có dry-run còn hiệu lực"
+        "Pushing is not allowed without a valid dry-run"
       ],
       "status": "planned"
     },
     {
       "id": "P2-07",
       "phase": "P2",
-      "title": "Push draft: thực thi, kiểm lại quyền, idempotency, reconcile",
+      "title": "Push draft: execution, permission recheck, idempotency, reconcile",
       "owner": "web",
       "depends_on": [
         "P2-06"
@@ -857,7 +857,7 @@
         "§7.4",
         "§12"
       ],
-      "objective": "Job push chạy trong apps/jobs (pg-boss); lần đầu mặc định draft; kiểm lại product.push lúc chạy và trước từng store; timeout sau khi đã ghi Shopify thì đọc lại để reconcile, không retry mù; mọi bước ghi event.",
+      "objective": "Push jobs run in apps/jobs (pg-boss); the first push defaults to draft; recheck product.push at execution time and before each store; a timeout after a Shopify write triggers a read to reconcile, not blind retries; every step records an event.",
       "paths": [
         "apps/jobs/src/push/run-push.ts",
         "packages/core/src/push/execute.ts",
@@ -869,31 +869,31 @@
           "file": "packages/core/test/push/execute.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Quyền bị thu hồi giữa job: dừng trước store kế tiếp, ghi event",
-            "Admin chưa được cấp: bị từ chối",
-            "Match variant bằng variantOptionKey, không theo index (bất biến §20.2)",
-            "Media: gắn ảnh mới trước rồi mới xoá ảnh cũ (bất biến §20.6)",
-            "Lần push đầu mặc định draft (bất biến §20.9)"
+            "Permission is revoked during a job: stop before the next store and record an event",
+            "An admin without a grant is rejected",
+            "Match variants using variantOptionKey, not by index (invariant §20.2)",
+            "Media: attach new images before deleting old ones (invariant §20.6)",
+            "The first push defaults to draft (invariant §20.9)"
           ]
         },
         {
           "file": "packages/core/test/push/reconcile.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Stub timeout sau khi đã tạo product: job đọc lại theo handle/idempotency key, không tạo product thứ 2",
-            "pg-boss giao lại message: job đã terminal thì thoát ngay"
+            "The stub times out after creating a product: the job reads it back by handle/idempotency key and does not create a second product",
+            "pg-boss redelivers a message: if the job is already terminal, exit immediately"
           ]
         }
       ],
       "done": [
-        "Push 1 product lên Shopify dev store (gate riêng, cần credential) đúng variant, giá, ảnh"
+        "Push 1 product to a Shopify dev store (a separate gate requiring credentials) with the correct variants, prices, and images"
       ],
       "status": "planned"
     },
     {
       "id": "P2-08",
       "phase": "P2",
-      "title": "Public: status active, sales channel, market",
+      "title": "Publishing: active status, sales channels, markets",
       "owner": "web",
       "depends_on": [
         "P2-07"
@@ -905,7 +905,7 @@
         "§6.5",
         "§20"
       ],
-      "objective": "Tách quyền product.publish; hộp xác nhận bắt buộc tick; kiểm lại quyền lúc chạy; market exclusion fail closed; sales channel non-market khác bị unpublish khi type có khai báo. Bộ test bất biến PRD §20 phần push.",
+      "objective": "Keep product.publish as a separate permission; the confirmation dialog requires a checked checkbox; recheck permission at execution time; market exclusion fails closed; other non-market sales channels are unpublished when declared by the type. Test the push-related PRD §20 invariants.",
       "paths": [
         "packages/core/src/push/publish.ts",
         "packages/core/src/push/markets.ts",
@@ -917,29 +917,29 @@
           "file": "packages/core/test/push/publish.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Có product.push nhưng không có product.publish: bị từ chối",
-            "seller_support không được owner cấp publish: bị từ chối",
-            "Owner thu hồi publish sau khi job xếp hàng: job dừng khi chạy"
+            "Users with product.push but without product.publish are rejected",
+            "seller_support without publish permission granted by the owner is rejected",
+            "The owner revokes publish after a job is queued: the job stops at execution time"
           ]
         },
         {
           "file": "packages/core/test/push/invariants/markets.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Market exclusion fail closed (bất biến §20.3)",
-            "Channel non-market khác bị unpublish (bất biến §20.4)"
+            "Market exclusion fails closed (invariant §20.3)",
+            "Other non-market channels are unpublished (invariant §20.4)"
           ]
         }
       ],
       "done": [
-        "Mọi bất biến §20 liên quan push có test tương ứng"
+        "Every push-related §20 invariant has a corresponding test"
       ],
       "status": "planned"
     },
     {
       "id": "P2-09",
       "phase": "P2",
-      "title": "Hàng chờ yêu cầu push",
+      "title": "Push request queue",
       "owner": "web",
       "depends_on": [
         "P2-06",
@@ -949,7 +949,7 @@
         4
       ],
       "prd_refs": [],
-      "objective": "Người có product.edit nhưng không có product.push thấy nút Gửi yêu cầu push; yêu cầu kèm dry-run; người có product.push trong store duyệt hoặc trả lại có lý do; có thông báo.",
+      "objective": "Users with product.edit but without product.push see the Send push request button; requests include a dry-run; users with product.push in the store approve or return requests with a reason; notifications are provided.",
       "paths": [
         "packages/core/src/push/requests.ts",
         "packages/db/src/schema/push-requests.ts",
@@ -960,27 +960,27 @@
           "file": "packages/core/test/push/requests.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Người gửi không tự duyệt được yêu cầu của mình nếu không có product.push",
-            "Dry-run của yêu cầu cũ thì phải chạy lại trước khi duyệt"
+            "Requesters cannot approve their own requests without product.push",
+            "A stale request dry-run must be rerun before approval"
           ]
         },
         {
           "file": "tests/e2e/push-request.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Seller gửi yêu cầu, owner thấy trong hàng chờ, duyệt thì job push chạy"
+            "A seller submits a request, the owner sees it in the queue, and approval starts the push job"
           ]
         }
       ],
       "done": [
-        "Không có đường push nào bỏ qua người có quyền"
+        "No push path bypasses a user with permission"
       ],
       "status": "planned"
     },
     {
       "id": "P2-10",
       "phase": "P2",
-      "title": "Import và resync từ Shopify",
+      "title": "Import and resync from Shopify",
       "owner": "web",
       "depends_on": [
         "P2-03",
@@ -992,7 +992,7 @@
       "prd_refs": [
         "§6.6"
       ],
-      "objective": "Import product có sẵn trên Shopify vào catalog; resync variant theo bảng giá; giữ nguyên SKU khi resync.",
+      "objective": "Import existing Shopify products into the catalog; resync variants according to the price table; preserve SKUs during resync.",
       "paths": [
         "packages/core/src/shopify/import.ts",
         "packages/core/src/catalog/resync.ts",
@@ -1003,21 +1003,21 @@
           "file": "packages/core/test/shopify/import.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Import 2 lần không tạo trùng",
-            "Resync giữ nguyên SKU (bất biến §20.11)",
-            "Người không có quyền store không import được"
+            "Importing 2 times creates no duplicates",
+            "Resync preserves SKUs (invariant §20.11)",
+            "Users without store permission cannot import"
           ]
         }
       ],
       "done": [
-        "Import chạy nền, có tiến độ và log"
+        "Import runs in the background with progress and logs"
       ],
       "status": "planned"
     },
     {
       "id": "P3-01",
       "phase": "P3",
-      "title": "Vòng đời skill: draft, duyệt, publish, deprecate",
+      "title": "Skill lifecycle: draft, review, publish, deprecate",
       "owner": "both",
       "depends_on": [
         "P1-07"
@@ -1026,7 +1026,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Skills và skill_versions bất biến theo manifest trong packages/contracts; kiểm biến template khớp khai báo; diff 2 version; người có skill.publish duyệt; job ghi skill_version_id; gán skill mặc định theo job type, product type, niche.",
+      "objective": "Skills and skill_versions are immutable according to the manifest in packages/contracts; check that template variables match their declarations; diff 2 versions; users with skill.publish approve; jobs record skill_version_id; assign default skills by job type, product type, and niche.",
       "paths": [
         "packages/core/src/skills/registry.ts",
         "packages/core/src/skills/render.ts",
@@ -1040,28 +1040,28 @@
           "file": "packages/core/test/skills/registry.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Sửa version đã publish: bị từ chối, phải tạo version mới",
-            "Template dùng biến chưa khai báo: bị từ chối khi lưu",
-            "Manifest sai schema: bị từ chối với đường dẫn lỗi"
+            "Editing a published version is rejected; a new version must be created",
+            "A template using undeclared variables is rejected on save",
+            "A manifest that does not match the schema is rejected with the error path"
           ]
         },
         {
           "file": "packages/core/test/skills/render.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Prompt render đúng biến, không chèn được biến lạ từ input người dùng"
+            "Prompts render the correct variables; unexpected variables cannot be injected from user input"
           ]
         }
       ],
       "done": [
-        "Mọi job AI truy được về đúng skill version"
+        "Every AI job can be traced to the correct skill version"
       ],
       "status": "planned"
     },
     {
       "id": "P3-02",
       "phase": "P3",
-      "title": "Gói niche agent: upload zip an toàn và validator",
+      "title": "Niche agent packages: safe zip upload and validator",
       "owner": "both",
       "depends_on": [
         "P3-01"
@@ -1070,7 +1070,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Upload zip skill niche; giải nén có kiểm đường dẫn, giới hạn dung lượng và số file; chạy validator Python của pod-skill-builder như subprocess có timeout, map lỗi về field.",
+      "objective": "Upload niche skill zip files; extraction checks paths and limits size and file count; run the pod-skill-builder Python validator as a subprocess with a timeout, and map errors to fields.",
       "paths": [
         "packages/core/src/skills/archive.ts",
         "packages/core/src/skills/validator.ts",
@@ -1081,30 +1081,30 @@
           "file": "packages/core/test/skills/archive.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Zip có ../ hoặc đường dẫn tuyệt đối: bị từ chối (zip-slip)",
-            "Zip bomb vượt giới hạn giải nén: dừng",
-            "Vượt số file tối đa: bị từ chối",
-            "Symlink trong zip: bị từ chối"
+            "A zip containing ../ or absolute paths is rejected (zip-slip)",
+            "A zip bomb exceeding the extraction limit is stopped",
+            "Exceeding the maximum file count is rejected",
+            "Symlinks in zip files are rejected"
           ]
         },
         {
           "file": "packages/core/test/skills/validator.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Validator chạy quá thời gian: bị kill, trả lỗi rõ",
-            "Output validator map đúng về field"
+            "A validator exceeding its time limit is killed and returns a clear error",
+            "Validator output maps correctly to fields"
           ]
         }
       ],
       "done": [
-        "Không có file nào được ghi ra ngoài thư mục tạm của lần giải nén"
+        "No files are written outside the temporary directory for that extraction"
       ],
       "status": "planned"
     },
     {
       "id": "P3-03",
       "phase": "P3",
-      "title": "Provider skill: theo dõi cài đặt và định tuyến",
+      "title": "Provider skills: install tracking and routing",
       "owner": "both",
       "depends_on": [
         "P3-02"
@@ -1113,7 +1113,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Theo dõi account nào cài provider skill version nào (từ register và account status); scheduler chỉ giao job cần skill cho account đã cài; chạy thử A/B và đo tỉ lệ ảnh được duyệt theo skill version.",
+      "objective": "Track which provider skill versions each account has installed (from register and account status); the scheduler assigns jobs requiring a skill only to accounts with that skill installed; run A/B trials and measure image approval rates by skill version.",
       "paths": [
         "packages/core/src/skills/provider-install.ts",
         "packages/core/src/skills/test-runs.ts",
@@ -1125,20 +1125,20 @@
           "file": "packages/core/test/skills/provider-install.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Account báo gỡ skill: job cần skill không còn giao cho account đó",
-            "Tỉ lệ duyệt tính đúng theo skill version x provider"
+            "An account reports uninstalling a skill: jobs requiring it are no longer assigned to that account",
+            "Approval rates are calculated correctly by skill version x provider"
           ]
         }
       ],
       "done": [
-        "Thấy được skill nào cho tỉ lệ duyệt tốt hơn"
+        "It is possible to see which skills achieve better approval rates"
       ],
       "status": "planned"
     },
     {
       "id": "P3-04",
       "phase": "P3",
-      "title": "Màn tài khoản AI và worker (admin)",
+      "title": "AI account and worker screen (admin)",
       "owner": "web",
       "depends_on": [
         "P3-03"
@@ -1147,7 +1147,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Screen 6 phần vận hành: trạng thái account (chạy, tạm nghỉ, hết phiên, chờ worker), worker trực tuyến và nhịp cuối, job đang chạy, skill đã cài; nút Đã đăng nhập lại; cấp và thu hồi token worker (hiện 1 lần, lưu hash).",
+      "objective": "The operations section of screen 6: account states (running, resting, session expired, waiting for worker), online workers and last heartbeat, running jobs, installed skills; a Re-login completed button; issue and revoke worker tokens (shown 1 time, stored as hashes).",
       "paths": [
         "apps/web/src/app/(app)/admin/accounts/page.tsx",
         "apps/web/src/app/(app)/admin/workers/page.tsx",
@@ -1160,28 +1160,28 @@
           "file": "packages/core/test/workers/admin.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Token worker chỉ hiện 1 lần, DB chỉ có hash",
-            "Thu hồi token: request kế tiếp 401",
-            "Chỉ admin truy cập được"
+            "A worker token is shown only 1 time; the database contains only its hash",
+            "Revoke a token: the next request returns 401",
+            "Only admins can access it"
           ]
         },
         {
           "file": "tests/e2e/admin-accounts.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Account hết phiên hiện rõ bằng chữ + icon; bấm Đã đăng nhập lại thì chờ worker xác nhận"
+            "Accounts with expired sessions are clearly shown with text + icons; clicking Re-login completed waits for worker confirmation"
           ]
         }
       ],
       "done": [
-        "Admin biết ngay account nào cần đăng nhập lại"
+        "Admins can immediately identify accounts needing re-login"
       ],
       "status": "planned"
     },
     {
       "id": "P3-05",
       "phase": "P3",
-      "title": "Gia cố bảo mật",
+      "title": "Security hardening",
       "owner": "web",
       "depends_on": [
         "P1-03",
@@ -1192,7 +1192,7 @@
       "prd_refs": [
         "§6.1"
       ],
-      "objective": "Giới hạn tốc độ đăng nhập, tạo lời mời, API worker; CSP và security header; CSRF cho server action; storageOrigins chống SSRF; redaction log; audit dependency; checklist review bảo mật trước production.",
+      "objective": "Rate limits for sign-in, invite creation, and the worker API; CSP and security headers; CSRF for server actions; storageOrigins to prevent SSRF; log redaction; dependency audit; a security review checklist before production.",
       "paths": [
         "apps/web/src/middleware.ts",
         "apps/web/next.config.ts",
@@ -1205,33 +1205,33 @@
           "file": "packages/core/test/security/rate-limit.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Sai mật khẩu quá ngưỡng: khoá tạm theo tài khoản và IP"
+            "Incorrect passwords beyond the threshold cause temporary lockouts by account and IP"
           ]
         },
         {
           "file": "packages/core/test/logging/redact.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Log chứa token, cookie, secret: bị che trước khi ghi"
+            "Tokens, cookies, and secrets in logs are redacted before writing"
           ]
         },
         {
           "file": "tests/e2e/security-headers.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Mọi trang có CSP, X-Frame-Options, Referrer-Policy đúng cấu hình"
+            "Every page has CSP, X-Frame-Options, and Referrer-Policy matching the configuration"
           ]
         }
       ],
       "done": [
-        "Checklist bảo mật đạt, có người review"
+        "The security checklist passes and has been reviewed"
       ],
       "status": "planned"
     },
     {
       "id": "P3-06",
       "phase": "P3",
-      "title": "Quan sát và báo cáo usage",
+      "title": "Usage observability and reporting",
       "owner": "web",
       "depends_on": [
         "P1-11",
@@ -1243,7 +1243,7 @@
       "prd_refs": [
         "§14"
       ],
-      "objective": "Log có cấu trúc, metric (độ sâu hàng đợi, thời gian claim, lease hết hạn, trạng thái account), cảnh báo khi account hết phiên hoặc hàng đợi kẹt; xem audit log; báo cáo usage theo store và owner (chỉ đọc, không giới hạn).",
+      "objective": "Structured logs, metrics (queue depth, claim time, expired leases, account states), alerts when account sessions expire or the queue stalls; audit log viewing; usage reports by store and owner (read-only, no limits).",
       "paths": [
         "packages/core/src/observability/metrics.ts",
         "apps/jobs/src/alerts/account-alerts.ts",
@@ -1255,26 +1255,26 @@
           "file": "packages/core/test/observability/metrics.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Metric hàng đợi khớp số job queued thật trong DB"
+            "Queue metrics match the actual count of queued jobs in the database"
           ]
         },
         {
           "file": "apps/jobs/test/account-alerts.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Account chuyển session_expired: đúng 1 cảnh báo, không spam"
+            "An account transitions to session_expired: exactly 1 alert, no spam"
           ]
         }
       ],
       "done": [
-        "Có dashboard vận hành đủ để trực không cần đọc DB"
+        "An operations dashboard is sufficient for on-call work without reading the database"
       ],
       "status": "planned"
     },
     {
       "id": "P3-07",
       "phase": "P3",
-      "title": "Đo tải theo profile và cổng đạt",
+      "title": "Load testing per profile and pass gates",
       "owner": "web",
       "depends_on": [
         "P1-06",
@@ -1286,7 +1286,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Đo trên Postgres và MinIO thật bằng fake-worker. Profile đề xuất: A = 50 người dùng UI + 20 account + 5.000 job; B = 200 người dùng + 100 account + 50.000 job. Cổng đạt đề xuất (chốt lại khi có máy prod): claim p95 < 200 ms, không double claim, không store nào chờ quá 3 vòng xoay. Công bố cấu hình máy; sức chứa là số đo, không phải cam kết không giới hạn.",
+      "objective": "Measure on real Postgres and MinIO using fake-worker. Proposed profiles: A = 50 UI users + 20 accounts + 5,000 jobs; B = 200 users + 100 accounts + 50,000 jobs. Proposed pass gates (finalize once the production machine is available): claim p95 < 200 ms, no double claims, no store waits more than 3 rotations. Publish the machine configuration; capacity is measured, not a promise of unlimited scale.",
       "paths": [
         "tests/load/profiles.ts",
         "tests/load/run.ts",
@@ -1297,20 +1297,20 @@
           "file": "tests/load/run.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Profile A và B chạy đủ thời lượng, xuất p50/p95/p99, lỗi, độ công bằng, thời gian xả hàng đợi"
+            "Profiles A and B run for the full duration and output p50/p95/p99, errors, fairness, and queue drain time"
           ]
         }
       ],
       "done": [
-        "Có báo cáo số đo thật kèm cấu hình máy",
-        "Ghi rõ ngưỡng nào cần thêm worker hoặc tách DB"
+        "A report includes actual measurements and machine configuration",
+        "Document the thresholds requiring more workers or a separate database"
       ],
       "status": "planned"
     },
     {
       "id": "P3-08",
       "phase": "P3",
-      "title": "Hoàn thiện UI và accessibility",
+      "title": "UI polish and accessibility",
       "owner": "web",
       "depends_on": [
         "P1-09",
@@ -1331,7 +1331,7 @@
       "prd_refs": [
         "§11.2"
       ],
-      "objective": "Rà cả 6 màn ở 1440, 1024, 390: không tràn ngang, thao tác bàn phím đầy đủ, trạng thái không chỉ bằng màu, giảm chuyển động, axe sạch, ảnh chụp so sánh để bắt vỡ giao diện.",
+      "objective": "Review all 6 screens at 1440, 1024, 390: no horizontal overflow, complete keyboard operation, states not indicated by color alone, reduced motion, clean axe results, and screenshot comparisons to detect layout breakage.",
       "paths": [
         "packages/ui/src/tokens.css",
         "packages/ui/src/components/",
@@ -1342,27 +1342,27 @@
           "file": "tests/e2e/visual/screens.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "6 màn x 3 kích thước: không tràn ngang, ảnh chụp khớp baseline trong ngưỡng"
+            "6 screens x 3 sizes: no horizontal overflow; screenshots match the baseline within the threshold"
           ]
         },
         {
           "file": "tests/e2e/a11y.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "axe không có lỗi serious/critical trên 6 màn",
-            "Toàn bộ luồng chính làm được chỉ bằng bàn phím"
+            "axe reports no serious/critical violations on 6 screens",
+            "All main flows can be completed using only the keyboard"
           ]
         }
       ],
       "done": [
-        "Checklist UI đạt ở cả 3 kích thước"
+        "The UI checklist passes at all 3 sizes"
       ],
       "status": "planned"
     },
     {
       "id": "P3-09",
       "phase": "P3",
-      "title": "Màn soạn niche master data theo schema 2.0",
+      "title": "Niche master data editor (schema 2.0)",
       "owner": "web",
       "depends_on": [
         "P3-01",
@@ -1372,7 +1372,7 @@
         7
       ],
       "prd_refs": [],
-      "objective": "Form 5 bước soạn đủ 17 section của schema 2.0; đếm tối thiểu theo từng field như generator, style_variants đúng 4; lỗi hiển thị cùng định dạng validator và nút Sửa đưa focus về field; trạng thái dữ liệu curated-draft, researched, validated; bản nháp lưu tự động theo skill.edit.",
+      "objective": "A 5-step form authors all 17 sections of schema 2.0; enforce per-field minimum counts as in the generator, with exactly 4 style_variants; errors use the validator's format, and the Fix button focuses the field; data states are curated-draft, researched, validated; drafts autosave under skill.edit permission.",
       "paths": [
         "packages/core/src/skills/niche-schema.ts",
         "packages/core/src/skills/niche-rules.ts",
@@ -1384,32 +1384,32 @@
           "file": "packages/core/test/skills/niche-schema.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "occasions 6 bản ghi: lỗi requires at least 8 records; found 6",
-            "style_variants 5 bản ghi: lỗi requires exactly 4",
-            "qa_rules.max_colors 13: lỗi expected an integer from 1 to 12",
-            "Bảng màu chứa #00FF00: bị từ chối",
-            "Dữ liệu mẫu teacher-example-data.json: hợp lệ"
+            "occasions with 6 records: error requires at least 8 records; found 6",
+            "style_variants with 5 records: error requires exactly 4",
+            "qa_rules.max_colors of 13: error expected an integer from 1 to 12",
+            "A palette containing #00FF00 is rejected",
+            "The sample data teacher-example-data.json is valid"
           ]
         },
         {
           "file": "apps/web/test/e2e/niche-editor.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Nút Sửa nhảy đúng bước và focus field lỗi",
-            "Còn lỗi thì nút build bị khóa",
-            "Không tràn ngang ở 1024, 760, 390px"
+            "The Fix button jumps to the correct step and focuses the field with the error",
+            "The build button is disabled while errors remain",
+            "No horizontal overflow at 1024, 760, 390px"
           ]
         }
       ],
       "done": [
-        "Luật tối thiểu trong UI và validator Python cho cùng kết quả trên bộ dữ liệu mẫu"
+        "The UI minimum rules and Python validator produce the same results on the sample dataset"
       ],
       "status": "planned"
     },
     {
       "id": "P3-10",
       "phase": "P3",
-      "title": "Chấm độ hợp thị trường và build skill version từ master data",
+      "title": "Market-fit scoring and skill version builds from master data",
       "owner": "both",
       "depends_on": [
         "P3-09"
@@ -1418,7 +1418,7 @@
         7
       ],
       "prd_refs": [],
-      "objective": "Chấm 6 tiêu chí 1 đến 5 (rõ ý, hợp làm quà, cảm xúc, khác biệt, làm thành bộ, an toàn IP), tối đa 30; 25 trở lên làm, 21 chỉnh, 16 làm lại, 15 trở xuống thay; IP dưới 4 luôn chặn. Build gọi generator như job worker có timeout, ra skill_version bất biến, chưa publish.",
+      "objective": "Score 6 criteria from 1 to 5 (clarity, gift suitability, emotion, differentiation, collection potential, IP safety), with a maximum of 30; 25 or more: proceed, 21: revise, 16: rework, 15 or less: replace; IP below 4 always blocks. Builds invoke the generator as a worker job with a timeout and produce an immutable skill_version that is not yet published.",
       "paths": [
         "packages/core/src/skills/market-fit.ts",
         "apps/jobs/src/skills/build-niche-skill.ts",
@@ -1429,30 +1429,30 @@
           "file": "packages/core/test/skills/market-fit.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "26 điểm, IP 5: Làm",
-            "24 điểm: Chỉnh",
-            "IP 3 dù tổng 27: Chặn",
-            "15 điểm: Thay"
+            "26 points, IP 5: Proceed",
+            "24 points: Revise",
+            "IP 3 even with a total of 27: Block",
+            "15 points: Replace"
           ]
         },
         {
           "file": "apps/jobs/test/skills/build-niche-skill.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "Generator quá thời gian: job lỗi rõ, không tạo version",
-            "Build thành công: version mới trạng thái draft, không tự publish"
+            "The generator exceeds its time limit: the job reports a clear error and creates no version",
+            "A successful build creates a new version in draft state without automatically publishing"
           ]
         }
       ],
       "done": [
-        "Mọi skill version build từ master data truy được về bản master data và điểm chấm"
+        "Every skill version built from master data can be traced to its master data version and scores"
       ],
       "status": "planned"
     },
     {
       "id": "P3-11",
       "phase": "P3",
-      "title": "Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại",
+      "title": "OpenBao secret store for subscription accounts and automatic re-login",
       "owner": "both",
       "depends_on": [
         "P3-04",
@@ -1462,7 +1462,7 @@
         6
       ],
       "prd_refs": [],
-      "objective": "Lưu thông tin đăng nhập tài khoản subscription (ChatGPT, Claude, Grok, Gemini và dịch vụ khác) trong OpenBao KV v2, TOTP qua secrets engine totp. Worker xác thực AppRole, nhận secret qua response wrapping dùng một lần. Khi account_state về session_expired, worker tự đăng nhập lại; captcha hoặc xác minh thiết bị thì chuyển trạng thái chờ người và báo admin. Webapp chỉ thấy metadata, không bao giờ thấy giá trị bí mật.",
+      "objective": "Store subscription account credentials (ChatGPT, Claude, Grok, Gemini, and other services) in OpenBao KV v2, with TOTP through the totp secrets engine. Workers authenticate using AppRole and receive secrets through single-use response wrapping. When account_state becomes session_expired, the worker automatically logs in again; captcha or device verification changes the state to waiting for a human and alerts admins. The webapp sees only metadata, never secret values.",
       "paths": [
         "infra/openbao/policies/worker-accounts.hcl",
         "infra/openbao/docker-compose.openbao.yml",
@@ -1474,22 +1474,22 @@
           "file": "packages/core/test/accounts/credential-ref.test.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "API webapp trả metadata tài khoản không chứa giá trị bí mật",
-            "Wrap token dùng lần hai: bị từ chối",
-            "Policy worker không đọc được path của store khác"
+            "The webapp API returns account metadata without secret values",
+            "Using a wrap token a second time is rejected",
+            "The worker policy cannot read another store's path"
           ]
         },
         {
           "file": "apps/web/test/e2e/account-relogin.spec.ts",
           "status": "PLANNED - not implemented, not executed",
           "scenarios": [
-            "session_expired: worker báo đăng nhập lại thành công, trạng thái về available",
-            "Gặp captcha: trạng thái chờ người, admin nhận cảnh báo"
+            "session_expired: the worker reports successful re-login and the state returns to available",
+            "A captcha is encountered: the state changes to waiting for a human, and admins receive an alert"
           ]
         }
       ],
       "done": [
-        "Không có mật khẩu, cookie hoặc seed TOTP nào nằm trong Postgres, log hay payload job"
+        "No passwords, cookies, or TOTP seeds are stored in Postgres, logs, or job payloads"
       ],
       "status": "planned"
     }

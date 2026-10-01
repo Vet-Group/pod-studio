@@ -69,13 +69,13 @@ differentiation, series or bundle potential, IP and trademark safety.
 An IP score below 4 blocks the idea whatever the total. The thresholds are not editable per niche; the
 generator rejects any other value.
 
-### 4. Editor UX (wireframe screen 7, "Dữ liệu ngách")
+### 4. Editor UX (wireframe screen 7, "Niche data")
 
 - Five steps: buyers, occasions and emotions, visuals and products, hooks, briefs and scoring, style,
   IP and QA. Each step shows its own error count.
 - Every list field shows `current/minimum`, a progress bar and sample values. The exact-4 field disables
   "add" at 4 and says to edit or replace instead.
-- A validator panel lists every error; "Sửa" jumps to the step and focuses the field.
+- A validator panel lists every error; "Fix" jumps to the step and focuses the field.
 - "Build skill version" stays disabled while any error remains. A build never publishes.
 - A sticky action bar keeps previous, next and build reachable at 1024, 760 and 390 px.
 

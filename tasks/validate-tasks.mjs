@@ -65,5 +65,5 @@ if (errors.length) {
   console.error(errors.map((e) => `FAIL ${e}`).join('\n'));
   process.exit(1);
 }
-console.log(`OK ${tasks.length} task (P1 ${count('P1')}, P2 ${count('P2')}, P3 ${count('P3')}), ` +
-  `${tasks.reduce((n, t) => n + t.tests.length, 0)} file test dự kiến, không chu trình, đủ ${SCREENS} màn.`);
+console.log(`OK ${tasks.length} tasks (P1 ${count('P1')}, P2 ${count('P2')}, P3 ${count('P3')}), ` +
+  `${tasks.reduce((n, t) => n + t.tests.length, 0)} planned test files, no cycles, all ${SCREENS} screens covered.`);

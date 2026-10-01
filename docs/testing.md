@@ -1,64 +1,64 @@
-# Chạy dev và test
+# Running development and tests
 
-Tài liệu cho P1-01. Chỉ cần **Node 22.12+**, **pnpm** (qua `corepack`) và **Docker Desktop**.
+Documentation for P1-01. Requires only **Node 22.12+**, **pnpm** (via `corepack`) and **Docker Desktop**.
 
-## Từ clean checkout
+## From a clean checkout
 
 ```bash
 corepack enable
 pnpm install
-pnpm services:up      # Postgres 16 (cổng 54316) + MinIO (cổng 19000, console 19001)
+pnpm services:up      # Postgres 16 (port 54316) + MinIO (port 19000, console 19001)
 pnpm dev              # webapp: http://localhost:3100
 ```
 
-`pnpm dev` hiện chưa đọc database: webapp mới có khung điều hướng 7 màn, bố cục responsive và màu lấy từ `design/wireframes/index.html`. Mỗi màn là trang giữ chỗ, ghi rõ task nào sẽ dựng nó. Đăng nhập đến ở P1-03.
+`pnpm dev` does not yet read the database: the webapp currently has a navigation shell for 7 screens, a responsive layout and colors from `design/wireframes/index.html`. Each screen is a placeholder page that identifies the task that will build it. Login arrives in P1-03.
 
-Schema và migration có từ P1-02 (`packages/db`, xem [database.md](database.md)). Để có database dev:
+Schemas and migrations are available from P1-02 (`packages/db`, see [database.md](database.md)). To set up the development database:
 
 ```bash
-cp apps/web/.env.example apps/web/.env.local   # một lần; chỉ chứa giá trị local
-pnpm db:migrate                                # áp migration vào pod_dev
+cp apps/web/.env.example apps/web/.env.local   # once; contains local values only
+pnpm db:migrate                                # apply migrations to pod_dev
 ```
 
-Kiểm tra nhanh: `curl http://localhost:3100/api/health` trả `{"ok":true,...}`.
+Quick check: `curl http://localhost:3100/api/health` returns `{"ok":true,...}`.
 
-## Lệnh kiểm tra
+## Check commands
 
-| Lệnh | Việc làm |
+| Command | What it does |
 | --- | --- |
-| `pnpm typecheck` | Sinh type route của Next rồi chạy `tsc` cho app, `packages/db` và thư mục `tests/` |
-| `pnpm lint` | ESLint cho toàn repo (bỏ qua `design/`, `packages/contracts/`, `tasks/` vì có bộ kiểm riêng) |
-| `pnpm test` | Vitest: guard, test cô lập Postgres/MinIO thật, test của `apps/web` và `packages/db` (migration, quy ước schema) |
-| `pnpm db:migrate` | Áp migration còn thiếu vào database trong `DATABASE_URL` hoặc `PG*` (đọc `apps/web/.env.local` nếu có) |
-| `pnpm db:generate` / `pnpm db:check` | Sinh migration từ schema / kiểm snapshot migration. Quy trình ở [database.md](database.md) |
-| `pnpm test:e2e` | Playwright ở 1440px và 390px: điều hướng, 404, không tràn ngang, axe WCAG 2.2 AA, vùng bấm 44px trên điện thoại |
+| `pnpm typecheck` | Generates Next route types, then runs `tsc` for the app, `packages/db` and the `tests/` directory |
+| `pnpm lint` | ESLint for the entire repo (excludes `design/`, `packages/contracts/`, `tasks/`, which have their own checks) |
+| `pnpm test` | Vitest: guards, isolation tests against real Postgres/MinIO, tests for `apps/web` and `packages/db` (migrations, schema conventions) |
+| `pnpm db:migrate` | Applies pending migrations to the database in `DATABASE_URL` or `PG*` (reads `apps/web/.env.local` if present) |
+| `pnpm db:generate` / `pnpm db:check` | Generates migrations from schemas / checks migration snapshots. See [database.md](database.md) for the workflow |
+| `pnpm test:e2e` | Playwright at 1440px and 390px: navigation, 404, no horizontal overflow, axe WCAG 2.2 AA, 44px tap targets on mobile |
 | `pnpm check` | `typecheck` + `lint` + `test` |
 
-`pnpm test` tự chạy `docker compose up -d --wait` nếu Postgres hoặc MinIO chưa lên. Đặt `TEST_SKIP_SERVICES_UP=1` nếu muốn tự quản lý service. `pnpm test:e2e` tự bật `next dev` ở cổng 3100, hoặc dùng lại server đang chạy.
+`pnpm test` automatically runs `docker compose up -d --wait` if Postgres or MinIO is not running. Set `TEST_SKIP_SERVICES_UP=1` to manage services yourself. `pnpm test:e2e` automatically starts `next dev` on port 3100, or reuses a running server.
 
-## Cô lập dữ liệu test
+## Test data isolation
 
-- Mỗi test tạo **database riêng** `pod_w<worker>_<ngẫu nhiên>_test` và **bucket riêng** `pod-w<worker>-<ngẫu nhiên>-test` (`tests/support/db.ts`, `tests/support/storage.ts`). Hai worker song song ghi cùng id không va nhau.
-- Cleanup chỉ xoá database và bucket do chính tiến trình đó tạo; tên khác (kể cả `pod_dev`, `postgres`) bị từ chối.
-- `tests/support/guard.ts` dừng cả lượt test trước khi file test nào được nạp nếu:
-  - `DATABASE_URL` hoặc `TEST_PGHOST` không phải localhost,
-  - tên database không kết thúc bằng `_test`,
-  - `S3_ENDPOINT` hoặc `TEST_S3_ENDPOINT` không phải MinIO local qua `http`.
+- Each test creates its own **database** `pod_w<worker>_<random>_test` and **bucket** `pod-w<worker>-<random>-test` (`tests/support/db.ts`, `tests/support/storage.ts`). Two parallel workers writing the same ID do not collide.
+- Cleanup deletes only databases and buckets created by that process; other names (including `pod_dev`, `postgres`) are rejected.
+- `tests/support/guard.ts` stops the entire test run before any test file is loaded if:
+  - `DATABASE_URL` or `TEST_PGHOST` is not localhost,
+  - the database name does not end in `_test`,
+  - `S3_ENDPOINT` or `TEST_S3_ENDPOINT` is not local MinIO over `http`.
 
-Biến có thể đổi (mặc định khớp `ops/local/docker-compose.yml`): `TEST_PGHOST`, `TEST_PGPORT`, `TEST_PGUSER`, `TEST_PGPASSWORD`, `TEST_S3_ENDPOINT`, `TEST_S3_ACCESS_KEY_ID`, `TEST_S3_SECRET_ACCESS_KEY`. Mật khẩu trong compose chỉ dùng cho máy local.
+Configurable variables (defaults match `ops/local/docker-compose.yml`): `TEST_PGHOST`, `TEST_PGPORT`, `TEST_PGUSER`, `TEST_PGPASSWORD`, `TEST_S3_ENDPOINT`, `TEST_S3_ACCESS_KEY_ID`, `TEST_S3_SECRET_ACCESS_KEY`. Passwords in compose are for local machines only.
 
-## Service local
+## Local services
 
-| Service | Địa chỉ | Ghi chú |
+| Service | Address | Notes |
 | --- | --- | --- |
-| Postgres 16 | `127.0.0.1:54316`, user `pod`, db `pod_dev` | Không dùng 5432 vì máy dev có thể đã chạy Postgres khác |
-| MinIO API | `http://127.0.0.1:19000` | Image `chainguard/minio` ghim theo digest; image `minio/minio` chính thức không còn kéo công khai được |
-| MinIO console | `http://127.0.0.1:19001` | Đăng nhập bằng `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` trong compose |
+| Postgres 16 | `127.0.0.1:54316`, user `pod`, db `pod_dev` | Does not use 5432 because the development machine may already be running another Postgres instance |
+| MinIO API | `http://127.0.0.1:19000` | `chainguard/minio` image pinned by digest; the official `minio/minio` image is no longer publicly pullable |
+| MinIO console | `http://127.0.0.1:19001` | Log in with `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` from compose |
 
-`pnpm services:down` dừng service và giữ dữ liệu; `pnpm services:reset` xoá luôn volume.
+`pnpm services:down` stops services and preserves data; `pnpm services:reset` also deletes volumes.
 
-## Ghi chú
+## Notes
 
-- Kế hoạch ghi `vitest.workspace.ts`; Vitest 5 đã bỏ file workspace, nên các project khai báo trong `vitest.config.ts` (`test.projects`).
-- `packages/contracts` giữ lockfile npm và lệnh `npm run check` riêng; nó chưa nằm trong pnpm workspace cho tới khi P1-07 nối type sinh ra vào `apps/web`.
-- Bộ test wireframe vẫn chạy riêng: `node design/wireframes/test-wireframes.mjs`.
+- The plan specifies `vitest.workspace.ts`; Vitest 5 removed the workspace file, so projects are declared in `vitest.config.ts` (`test.projects`).
+- `packages/contracts` keeps its own npm lockfile and `npm run check` command; it is not part of the pnpm workspace until P1-07 connects the generated types to `apps/web`.
+- The wireframe tests still run separately: `node design/wireframes/test-wireframes.mjs`.

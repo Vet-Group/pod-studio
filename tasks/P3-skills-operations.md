@@ -1,35 +1,35 @@
-# P3 Skills và vận hành
+# P3 Skills and operations
 
-Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia cố bảo mật, đo tải có số liệu, hoàn thiện UI.
+Goal: an immutable skill lifecycle, account/worker operations, security hardening, load testing with measurements, and UI polish.
 
-> Mọi test dưới đây: **PLANNED - not implemented, not executed**. Đường dẫn là đề xuất, tương đối từ root monorepo.
+> All tests below: **PLANNED - not implemented, not executed**. Paths are proposed and relative to the monorepo root.
 
-| ID | Task | Owner | Phụ thuộc | Màn |
+| ID | Task | Owner | Dependencies | Screen |
 |---|---|---|---|---|
-| P3-01 | Vòng đời skill: draft, duyệt, publish, deprecate | webapp + ngatruong123 | P1-07 | 6 |
-| P3-02 | Gói niche agent: upload zip an toàn và validator | webapp + ngatruong123 | P3-01 | 6 |
-| P3-03 | Provider skill: theo dõi cài đặt và định tuyến | webapp + ngatruong123 | P3-02 | 6 |
-| P3-04 | Màn tài khoản AI và worker (admin) | webapp | P3-03 | 6 |
-| P3-05 | Gia cố bảo mật | webapp | P1-03, P1-07, P2-05 | không |
-| P3-06 | Quan sát và báo cáo usage | webapp | P1-11, P3-04 | 6 |
-| P3-07 | Đo tải theo profile và cổng đạt | webapp | P1-06, P1-07, P1-08, P3-06 | 6 |
-| P3-08 | Hoàn thiện UI và accessibility | webapp | P1-09, P1-10, P2-02, P2-08, P3-04 | 1, 2, 3, 4, 5, 6, 7 |
-| P3-09 | Màn soạn niche master data theo schema 2.0 | webapp | P3-01, P3-02 | 7 |
-| P3-10 | Chấm độ hợp thị trường và build skill version từ master data | webapp + ngatruong123 | P3-09 | 7 |
-| P3-11 | Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại | webapp + ngatruong123 | P3-04, P3-05 | 6 |
+| P3-01 | Skill lifecycle: draft, review, publish, deprecate | webapp + worker team (ngatruong123) | P1-07 | 6 |
+| P3-02 | Niche agent packages: safe zip upload and validator | webapp + worker team (ngatruong123) | P3-01 | 6 |
+| P3-03 | Provider skills: install tracking and routing | webapp + worker team (ngatruong123) | P3-02 | 6 |
+| P3-04 | AI account and worker screen (admin) | webapp | P3-03 | 6 |
+| P3-05 | Security hardening | webapp | P1-03, P1-07, P2-05 | none |
+| P3-06 | Usage observability and reporting | webapp | P1-11, P3-04 | 6 |
+| P3-07 | Load testing per profile and pass gates | webapp | P1-06, P1-07, P1-08, P3-06 | 6 |
+| P3-08 | UI polish and accessibility | webapp | P1-09, P1-10, P2-02, P2-08, P3-04 | 1, 2, 3, 4, 5, 6, 7 |
+| P3-09 | Niche master data editor (schema 2.0) | webapp | P3-01, P3-02 | 7 |
+| P3-10 | Market-fit scoring and skill version builds from master data | webapp + worker team (ngatruong123) | P3-09 | 7 |
+| P3-11 | OpenBao secret store for subscription accounts and automatic re-login | webapp + worker team (ngatruong123) | P3-04, P3-05 | 6 |
 
 ---
 
-## P3-01 Vòng đời skill: draft, duyệt, publish, deprecate
+## P3-01 Skill lifecycle: draft, review, publish, deprecate
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P1-07
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P1-07
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from the ADR/contract)
 
-**Mục tiêu.** Skills và skill_versions bất biến theo manifest trong packages/contracts; kiểm biến template khớp khai báo; diff 2 version; người có skill.publish duyệt; job ghi skill_version_id; gán skill mặc định theo job type, product type, niche.
+**Goal.** Skills and skill_versions are immutable according to the manifest in packages/contracts; check that template variables match their declarations; diff 2 versions; users with skill.publish approve; jobs record skill_version_id; assign default skills by job type, product type, and niche.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/skills/registry.ts`
 - `packages/core/src/skills/render.ts`
@@ -38,91 +38,91 @@ Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia c�
 - `apps/web/src/app/(app)/skills/page.tsx`
 - `apps/web/src/features/skills/template-editor.tsx`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/skills/registry.test.ts`
-  - Sửa version đã publish: bị từ chối, phải tạo version mới
-  - Template dùng biến chưa khai báo: bị từ chối khi lưu
-  - Manifest sai schema: bị từ chối với đường dẫn lỗi
+  - Editing a published version: rejected; a new version must be created
+  - A template uses an undeclared variable: rejected on save
+  - A manifest violates the schema: rejected with the error path
 - `packages/core/test/skills/render.test.ts`
-  - Prompt render đúng biến, không chèn được biến lạ từ input người dùng
+  - The prompt renders the correct variables; user input cannot inject unknown variables
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Mọi job AI truy được về đúng skill version
+- Every AI job can be traced to the correct skill version
 
 ---
 
-## P3-02 Gói niche agent: upload zip an toàn và validator
+## P3-02 Niche agent packages: safe zip upload and validator
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P3-01
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P3-01
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from the ADR/contract)
 
-**Mục tiêu.** Upload zip skill niche; giải nén có kiểm đường dẫn, giới hạn dung lượng và số file; chạy validator Python của pod-skill-builder như subprocess có timeout, map lỗi về field.
+**Goal.** Upload niche skill zip archives; extract with path checks, size limits, and file count limits; run the pod-skill-builder Python validator as a subprocess with a timeout, and map errors to fields.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/skills/archive.ts`
 - `packages/core/src/skills/validator.ts`
 - `apps/jobs/src/skills/validate-job.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/skills/archive.test.ts`
-  - Zip có ../ hoặc đường dẫn tuyệt đối: bị từ chối (zip-slip)
-  - Zip bomb vượt giới hạn giải nén: dừng
-  - Vượt số file tối đa: bị từ chối
-  - Symlink trong zip: bị từ chối
+  - A zip contains ../ or absolute paths: rejected (zip-slip)
+  - A zip bomb exceeds the extraction limit: stopped
+  - The maximum file count is exceeded: rejected
+  - A symlink in the zip: rejected
 - `packages/core/test/skills/validator.test.ts`
-  - Validator chạy quá thời gian: bị kill, trả lỗi rõ
-  - Output validator map đúng về field
+  - The validator exceeds the timeout: killed, with a clear error returned
+  - Validator output maps to the correct fields
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Không có file nào được ghi ra ngoài thư mục tạm của lần giải nén
+- No file is written outside the temporary directory for that extraction
 
 ---
 
-## P3-03 Provider skill: theo dõi cài đặt và định tuyến
+## P3-03 Provider skills: install tracking and routing
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P3-02
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P3-02
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from the ADR/contract)
 
-**Mục tiêu.** Theo dõi account nào cài provider skill version nào (từ register và account status); scheduler chỉ giao job cần skill cho account đã cài; chạy thử A/B và đo tỉ lệ ảnh được duyệt theo skill version.
+**Goal.** Track which provider skill versions are installed on each account (from register and account status); the scheduler assigns jobs requiring a skill only to accounts with that skill installed; run A/B trials and measure image approval rates by skill version.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/skills/provider-install.ts`
 - `packages/core/src/skills/test-runs.ts`
 - `packages/db/src/schema/skill-installs.ts`
 - `apps/web/src/features/skills/approval-rate.tsx`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/skills/provider-install.test.ts`
-  - Account báo gỡ skill: job cần skill không còn giao cho account đó
-  - Tỉ lệ duyệt tính đúng theo skill version x provider
+  - An account reports uninstalling a skill: jobs requiring that skill are no longer assigned to that account
+  - Approval rates are calculated correctly by skill version x provider
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Thấy được skill nào cho tỉ lệ duyệt tốt hơn
+- It is clear which skills yield better approval rates
 
 ---
 
-## P3-04 Màn tài khoản AI và worker (admin)
+## P3-04 AI account and worker screen (admin)
 
 - **Owner:** webapp
-- **Phụ thuộc:** P3-03
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Dependencies:** P3-03
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from the ADR/contract)
 
-**Mục tiêu.** Screen 6 phần vận hành: trạng thái account (chạy, tạm nghỉ, hết phiên, chờ worker), worker trực tuyến và nhịp cuối, job đang chạy, skill đã cài; nút Đã đăng nhập lại; cấp và thu hồi token worker (hiện 1 lần, lưu hash).
+**Goal.** The operations section of screen 6: account status (running, paused, session expired, waiting for worker), online workers and their last heartbeat, running jobs, and installed skills; a "Logged in again" button; issue and revoke worker tokens (shown 1 time, stored as hashes).
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/app/(app)/admin/accounts/page.tsx`
 - `apps/web/src/app/(app)/admin/workers/page.tsx`
@@ -130,31 +130,31 @@ Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia c�
 - `apps/web/src/features/admin/worker-token-dialog.tsx`
 - `packages/core/src/workers/admin.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/workers/admin.test.ts`
-  - Token worker chỉ hiện 1 lần, DB chỉ có hash
-  - Thu hồi token: request kế tiếp 401
-  - Chỉ admin truy cập được
+  - A worker token is shown only 1 time; the DB contains only its hash
+  - A token is revoked: the next request returns 401
+  - Only admins can access it
 - `tests/e2e/admin-accounts.spec.ts`
-  - Account hết phiên hiện rõ bằng chữ + icon; bấm Đã đăng nhập lại thì chờ worker xác nhận
+  - An account with an expired session is clearly marked with text + an icon; clicking "Logged in again" waits for worker confirmation
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Admin biết ngay account nào cần đăng nhập lại
+- Admins immediately know which accounts need to log in again
 
 ---
 
-## P3-05 Gia cố bảo mật
+## P3-05 Security hardening
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-03, P1-07, P2-05
-- **Màn prototype:** không
-- **Tham chiếu PRD:** §6.1
+- **Dependencies:** P1-03, P1-07, P2-05
+- **Prototype screen:** none
+- **PRD reference:** §6.1
 
-**Mục tiêu.** Giới hạn tốc độ đăng nhập, tạo lời mời, API worker; CSP và security header; CSRF cho server action; storageOrigins chống SSRF; redaction log; audit dependency; checklist review bảo mật trước production.
+**Goal.** Rate limits for sign-in, invite creation, and the worker API; CSP and security headers; CSRF for server actions; storageOrigins to prevent SSRF; log redaction; dependency audits; a security review checklist before production.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/middleware.ts`
 - `apps/web/next.config.ts`
@@ -162,197 +162,197 @@ Mục tiêu: vòng đời skill bất biến, vận hành account/worker, gia c�
 - `packages/core/src/logging/redact.ts`
 - `docs/security-checklist.md`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/security/rate-limit.test.ts`
-  - Sai mật khẩu quá ngưỡng: khoá tạm theo tài khoản và IP
+  - Incorrect passwords exceed the threshold: temporary lockout by account and IP
 - `packages/core/test/logging/redact.test.ts`
-  - Log chứa token, cookie, secret: bị che trước khi ghi
+  - Logs contain tokens, cookies, or secrets: redacted before writing
 - `tests/e2e/security-headers.spec.ts`
-  - Mọi trang có CSP, X-Frame-Options, Referrer-Policy đúng cấu hình
+  - Every page has CSP, X-Frame-Options, and Referrer-Policy configured correctly
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Checklist bảo mật đạt, có người review
+- The security checklist passes and has been reviewed
 
 ---
 
-## P3-06 Quan sát và báo cáo usage
+## P3-06 Usage observability and reporting
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-11, P3-04
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** §14
+- **Dependencies:** P1-11, P3-04
+- **Prototype screen:** 6
+- **PRD reference:** §14
 
-**Mục tiêu.** Log có cấu trúc, metric (độ sâu hàng đợi, thời gian claim, lease hết hạn, trạng thái account), cảnh báo khi account hết phiên hoặc hàng đợi kẹt; xem audit log; báo cáo usage theo store và owner (chỉ đọc, không giới hạn).
+**Goal.** Structured logs and metrics (queue depth, claim time, expired leases, account status); alerts when an account session expires or the queue is stuck; audit log viewing; usage reports by store and owner (read-only, no limits).
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/observability/metrics.ts`
 - `apps/jobs/src/alerts/account-alerts.ts`
 - `apps/web/src/app/(app)/admin/audit/page.tsx`
 - `apps/web/src/app/(app)/admin/usage/page.tsx`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/observability/metrics.test.ts`
-  - Metric hàng đợi khớp số job queued thật trong DB
+  - The queue metric matches the actual number of queued jobs in the DB
 - `apps/jobs/test/account-alerts.test.ts`
-  - Account chuyển session_expired: đúng 1 cảnh báo, không spam
+  - An account transitions to session_expired: exactly 1 alert, no spam
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Có dashboard vận hành đủ để trực không cần đọc DB
+- An operations dashboard provides enough information for on-call monitoring without reading the DB
 
 ---
 
-## P3-07 Đo tải theo profile và cổng đạt
+## P3-07 Load testing per profile and pass gates
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-06, P1-07, P1-08, P3-06
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Dependencies:** P1-06, P1-07, P1-08, P3-06
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from the ADR/contract)
 
-**Mục tiêu.** Đo trên Postgres và MinIO thật bằng fake-worker. Profile đề xuất: A = 50 người dùng UI + 20 account + 5.000 job; B = 200 người dùng + 100 account + 50.000 job. Cổng đạt đề xuất (chốt lại khi có máy prod): claim p95 < 200 ms, không double claim, không store nào chờ quá 3 vòng xoay. Công bố cấu hình máy; sức chứa là số đo, không phải cam kết không giới hạn.
+**Goal.** Measure against real Postgres and MinIO using fake-worker. Proposed profiles: A = 50 UI users + 20 accounts + 5,000 jobs; B = 200 users + 100 accounts + 50,000 jobs. Proposed pass gates (finalize when production hardware is available): claim p95 < 200 ms, no double claims, no store waits more than 3 rotation cycles. Publish the hardware configuration; capacity is a measurement, not a promise of unlimited capacity.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `tests/load/profiles.ts`
 - `tests/load/run.ts`
 - `tests/load/report.md`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tests/load/run.ts`
-  - Profile A và B chạy đủ thời lượng, xuất p50/p95/p99, lỗi, độ công bằng, thời gian xả hàng đợi
+  - Profiles A and B run for the full duration and report p50/p95/p99, errors, fairness, and queue drain time
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Có báo cáo số đo thật kèm cấu hình máy
-- Ghi rõ ngưỡng nào cần thêm worker hoặc tách DB
+- A report includes real measurements and the hardware configuration
+- Clearly state the thresholds that require more workers or a separate DB
 
 ---
 
-## P3-08 Hoàn thiện UI và accessibility
+## P3-08 UI polish and accessibility
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-09, P1-10, P2-02, P2-08, P3-04
-- **Màn prototype:** 1, 2, 3, 4, 5, 6
-- **Tham chiếu PRD:** §11.2
+- **Dependencies:** P1-09, P1-10, P2-02, P2-08, P3-04
+- **Prototype screen:** 1, 2, 3, 4, 5, 6
+- **PRD reference:** §11.2
 
-**Mục tiêu.** Rà cả 6 màn ở 1440, 1024, 390: không tràn ngang, thao tác bàn phím đầy đủ, trạng thái không chỉ bằng màu, giảm chuyển động, axe sạch, ảnh chụp so sánh để bắt vỡ giao diện.
+**Goal.** Review all 6 screens at 1440, 1024, and 390: no horizontal overflow, full keyboard operation, states not conveyed by color alone, reduced motion, clean axe results, and screenshot comparisons to detect broken layouts.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/ui/src/tokens.css`
 - `packages/ui/src/components/`
 - `tests/e2e/visual/`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tests/e2e/visual/screens.spec.ts`
-  - 6 màn x 3 kích thước: không tràn ngang, ảnh chụp khớp baseline trong ngưỡng
+  - 6 screens x 3 sizes: no horizontal overflow; screenshots match the baseline within the threshold
 - `tests/e2e/a11y.spec.ts`
-  - axe không có lỗi serious/critical trên 6 màn
-  - Toàn bộ luồng chính làm được chỉ bằng bàn phím
+  - axe reports no serious/critical errors on the 6 screens
+  - All main flows can be completed using only the keyboard
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Checklist UI đạt ở cả 3 kích thước
+- The UI checklist passes at all 3 sizes
 
-## P3-09 Màn soạn niche master data theo schema 2.0
+## P3-09 Niche master data editor (schema 2.0)
 
 - **Owner:** webapp
-- **Phụ thuộc:** P3-01, P3-02
-- **Màn prototype:** 7
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+- **Dependencies:** P3-01, P3-02
+- **Prototype screen:** 7
+- **PRD reference:** none (new requirement from ADR 0003)
 
-**Mục tiêu.** Form 5 bước soạn đủ 17 section của schema 2.0; đếm tối thiểu theo từng field như generator, style_variants đúng 4; lỗi hiển thị cùng định dạng validator và nút Sửa đưa focus về field; trạng thái dữ liệu curated-draft, researched, validated; bản nháp lưu tự động theo skill.edit.
+**Goal.** A 5-step form for editing all 17 sections of schema 2.0; enforce minimum counts for each field as in the generator, with exactly 4 style_variants; show errors in the same format as the validator, with a "Fix" button that focuses the field; data statuses curated-draft, researched, validated; drafts autosave with the skill.edit permission.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/skills/niche-schema.ts`
 - `packages/core/src/skills/niche-rules.ts`
 - `apps/web/src/app/(app)/skills/niche/[id]/page.tsx`
 - `apps/web/src/features/skills/niche-editor/`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/skills/niche-schema.test.ts`
-  - occasions 6 bản ghi: lỗi requires at least 8 records; found 6
-  - style_variants 5 bản ghi: lỗi requires exactly 4
-  - qa_rules.max_colors 13: lỗi expected an integer from 1 to 12
-  - Bảng màu chứa #00FF00: bị từ chối
-  - Dữ liệu mẫu teacher-example-data.json: hợp lệ
+  - occasions with 6 records: error requires at least 8 records; found 6
+  - style_variants with 5 records: error requires exactly 4
+  - qa_rules.max_colors 13: error expected an integer from 1 to 12
+  - A color palette contains #00FF00: rejected
+  - Sample data teacher-example-data.json: valid
 - `apps/web/test/e2e/niche-editor.spec.ts`
-  - Nút Sửa nhảy đúng bước và focus field lỗi
-  - Còn lỗi thì nút build bị khóa
-  - Không tràn ngang ở 1024, 760, 390px
+  - The "Fix" button jumps to the correct step and focuses the field with the error
+  - The build button is disabled while errors remain
+  - No horizontal overflow at 1024, 760, 390px
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Luật tối thiểu trong UI và validator Python cho cùng kết quả trên bộ dữ liệu mẫu
+- The minimum-count rules in the UI and the Python validator produce the same results on the sample dataset
 
 ---
 
-## P3-10 Chấm độ hợp thị trường và build skill version từ master data
+## P3-10 Market-fit scoring and skill version builds from master data
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P3-09
-- **Màn prototype:** 7
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P3-09
+- **Prototype screen:** 7
+- **PRD reference:** none (new requirement from ADR 0003)
 
-**Mục tiêu.** Chấm 6 tiêu chí 1 đến 5 (rõ ý, hợp làm quà, cảm xúc, khác biệt, làm thành bộ, an toàn IP), tối đa 30; 25 trở lên làm, 21 chỉnh, 16 làm lại, 15 trở xuống thay; IP dưới 4 luôn chặn. Build gọi generator như job worker có timeout, ra skill_version bất biến, chưa publish.
+**Goal.** Score 6 criteria from 1 to 5 (clarity, gift suitability, emotion, distinctiveness, potential for a collection, IP safety), with a maximum of 30; 25 or more: proceed, 21: revise, 16: rework, 15 or less: replace; IP below 4 always blocks. A build calls the generator as a worker job with a timeout and produces an immutable skill_version that is not yet published.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/skills/market-fit.ts`
 - `apps/jobs/src/skills/build-niche-skill.ts`
 - `packages/contracts/schemas/niche-master-data.schema.json`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/skills/market-fit.test.ts`
-  - 26 điểm, IP 5: Làm
-  - 24 điểm: Chỉnh
-  - IP 3 dù tổng 27: Chặn
-  - 15 điểm: Thay
+  - 26 points, IP 5: Proceed
+  - 24 points: Revise
+  - IP 3 despite a total of 27: Block
+  - 15 points: Replace
 - `apps/jobs/test/skills/build-niche-skill.test.ts`
-  - Generator quá thời gian: job lỗi rõ, không tạo version
-  - Build thành công: version mới trạng thái draft, không tự publish
+  - The generator exceeds the timeout: the job fails with a clear error; no version is created
+  - A build succeeds: a new version has draft status and is not automatically published
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Mọi skill version build từ master data truy được về bản master data và điểm chấm
+- Every skill version built from master data can be traced to its master data revision and scores
 
 ---
 
-## P3-11 Kho bí mật OpenBao cho tài khoản subscription và tự đăng nhập lại
+## P3-11 OpenBao secret store for subscription accounts and automatic re-login
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P3-04, P3-05
-- **Màn prototype:** 6
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR 0003)
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P3-04, P3-05
+- **Prototype screen:** 6
+- **PRD reference:** none (new requirement from ADR 0003)
 
-**Mục tiêu.** Lưu thông tin đăng nhập tài khoản subscription (ChatGPT, Claude, Grok, Gemini và dịch vụ khác) trong OpenBao KV v2, TOTP qua secrets engine totp. Worker xác thực AppRole, nhận secret qua response wrapping dùng một lần. Khi account_state về session_expired, worker tự đăng nhập lại; captcha hoặc xác minh thiết bị thì chuyển trạng thái chờ người và báo admin. Webapp chỉ thấy metadata, không bao giờ thấy giá trị bí mật.
+**Goal.** Store subscription account credentials (ChatGPT, Claude, Grok, Gemini, and other services) in OpenBao KV v2, with TOTP through the totp secrets engine. Workers authenticate with AppRole and receive secrets through single-use response wrapping. When account_state becomes session_expired, the worker automatically logs in again; captcha or device verification changes the status to awaiting human intervention and alerts admins. The webapp sees only metadata, never secret values.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `infra/openbao/policies/worker-accounts.hcl`
 - `infra/openbao/docker-compose.openbao.yml`
 - `packages/contracts/schemas/account-credential-ref.schema.json`
 - `apps/web/src/features/accounts/credential-status.tsx`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/accounts/credential-ref.test.ts`
-  - API webapp trả metadata tài khoản không chứa giá trị bí mật
-  - Wrap token dùng lần hai: bị từ chối
-  - Policy worker không đọc được path của store khác
+  - The webapp API returns account metadata without secret values
+  - A wrap token is used a second time: rejected
+  - The worker policy cannot read another store's paths
 - `apps/web/test/e2e/account-relogin.spec.ts`
-  - session_expired: worker báo đăng nhập lại thành công, trạng thái về available
-  - Gặp captcha: trạng thái chờ người, admin nhận cảnh báo
+  - session_expired: the worker reports a successful re-login, and the status returns to available
+  - A captcha is encountered: status changes to awaiting human intervention; admins receive an alert
 
-**Điều kiện xong**
+**Completion criteria**
 
-- Không có mật khẩu, cookie hoặc seed TOTP nào nằm trong Postgres, log hay payload job
+- No passwords, cookies, or TOTP seeds are stored in Postgres, logs, or job payloads

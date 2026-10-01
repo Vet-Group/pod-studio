@@ -1,235 +1,235 @@
-# Plan: Webapp nội bộ "POD Studio" dựng trên nền PRD storekit (bản nháp v0.1)
+# Plan: internal web app "POD Studio" based on the storekit PRD (draft v0.1)
 
-> Trạng thái: bản nháp để thảo luận, **chưa triển khai**. Ngày 2026-09-30.
-> Nguồn đã đọc: `Downloads/prd-rebuild.md` (storekit + mockup-worker), `ngatruong123/redesign`, `ngatruong123/remakeai`, `Vet-Group/pod-skill-builder`.
-> Chưa đọc được: repo `storekit` và `mockup-worker` (không thấy dưới ngatruong123, Vet-Group, huuhungn). Mọi nhận định về 2 repo này dựa vào PRD.
-> Phạm vi của bạn: Webapp, API, DB, scheduler, quota. Phạm vi ngatruong123: workers (browser/API) và skills runtime.
+> Status: draft for discussion, **not implemented**. Date: 2026-09-30.
+> Sources reviewed: `prd-rebuild.md` (shared PRD, kept outside this repo) (storekit + mockup-worker), `ngatruong123/redesign`, `ngatruong123/remakeai`, `Vet-Group/pod-skill-builder`.
+> Not yet accessible: the `storekit` and `mockup-worker` repos (not found under ngatruong123, Vet-Group, huuhungn). All assessments of these 2 repos are based on the PRD.
+> Web team scope: Webapp, API, DB, scheduler, quota. Worker team (ngatruong123) scope: workers (browser/API) and skills runtime.
 
 ---
 
-## 0. Đánh giá: có dựa vào PRD được không?
+## 0. Assessment: can the PRD serve as the foundation?
 
-**Được, nhưng dùng PRD như "domain spec", không dùng như kiến trúc.** PRD rất tốt ở phần nghiệp vụ Shopify (đã có bất biến, idempotency, state machine, test case), nhưng được viết cho **1 người vận hành, 1 máy, 1 mật khẩu**. Ba giả định này ngược với bài toán của bạn.
+**Yes, but use the PRD as a "domain spec", not as the architecture.** The PRD is strong on Shopify business logic (it already has invariants, idempotency, state machines, test cases), but was written for **1 operator, 1 machine, 1 password**. These three assumptions conflict with the project's requirements.
 
-| Phần PRD | Quyết định | Lý do |
+| PRD section | Decision | Rationale |
 |---|---|---|
-| §4.1-4.4 catalog, pricing, products, variants, translations, store_products | **Giữ gần nguyên**, thêm cột owner/team | Đã ổn định, gắn chặt với logic push |
-| §6.2-6.6 bảng giá, SEO, tạo product, push 14 bước, import | **Giữ nguyên logic** | Phần giá trị nhất và dễ sai nhất; bất biến §20 phải giữ |
-| §7 tích hợp Shopify | **Giữ** | |
-| §5.1 state machine mockup_jobs | **Giữ transition, bổ sung** lease/heartbeat, error_class, trạng thái quota | Nhiều người dùng cần hàng đợi công bằng |
-| §8.5 internal worker API | **Giữ làm v1 compat**, thiết kế v2 | Để mockup-worker hiện tại chạy tiếp trong lúc chuyển đổi |
-| §8.4 agent API | **Giữ**, đổi auth sang token per agent có scope | |
-| §1.2, §10 auth `APP_PASSWORD`, session stateless | **Thay hoàn toàn** | Cần user, role, thu hồi session |
-| §13 filesystem chung, ràng buộc "cùng máy" §1.3 | **Thay** bằng object storage + presigned URL | Worker phải chạy được trên nhiều máy/IP |
-| §15 `WORKER_TOKEN`/`AGENT_TOKEN` dùng chung trong env | **Thay** bằng credential per worker/agent trong DB | Thu hồi, truy vết từng worker |
-| §16 mockup-worker | **Thuộc ngatruong123**, webapp chỉ giữ hợp đồng | |
-| §6.7-6.10 translate, audit, blog, theme | **Hoãn sau MVP** (hỏi Q8) | Không phục vụ trực tiếp designer/seller |
-| §11 UI | **Viết lại theo persona**, giữ design token §11.2 | UI hiện tại cho 1 operator |
+| §4.1-4.4 catalog, pricing, products, variants, translations, store_products | **Retain almost unchanged**, add owner/team columns | Stable and tightly coupled to push logic |
+| §6.2-6.6 price tables, SEO, product creation, 14-step push, import | **Retain the logic unchanged** | The most valuable and error-prone part; §20 invariants must be preserved |
+| §7 Shopify integration | **Retain** | |
+| §5.1 mockup_jobs state machine | **Retain transitions, add** lease/heartbeat, error_class, quota status | Multiple users require a fair queue |
+| §8.5 internal worker API | **Retain for v1 compatibility**, design v2 | Keep the current mockup-worker running during the transition |
+| §8.4 agent API | **Retain**, change auth to scoped per-agent tokens | |
+| §1.2, §10 `APP_PASSWORD` auth, stateless sessions | **Replace entirely** | Users, roles, and session revocation are required |
+| §13 shared filesystem, "same machine" constraint in §1.3 | **Replace** with object storage + presigned URLs | Workers must run across multiple machines/IPs |
+| §15 shared `WORKER_TOKEN`/`AGENT_TOKEN` in env | **Replace** with per-worker/agent credentials in the DB | Revocation and individual worker traceability |
+| §16 mockup-worker | **Owned by the worker team (ngatruong123)**, the webapp only maintains the contract | |
+| §6.7-6.10 translation, audit, blog, theme | **Defer until after the MVP** (ask Q8) | Does not directly serve designers/sellers |
+| §11 UI | **Rewrite by persona**, retain §11.2 design tokens | The current UI is for 1 operator |
 
-Ước lượng: khoảng 60% PRD tái dùng trực tiếp cho `core`. Phần còn lại (identity, tenancy, quota, storage, skills, UX) phải thiết kế mới.
+Estimate: about 60% of the PRD can be reused directly for `core`. The rest (identity, tenancy, quota, storage, skills, UX) requires a new design.
 
-Trả lời luôn 5 câu hỏi mở của PRD §22 (đề xuất, chờ bạn duyệt):
+Answers to the 5 open questions in PRD §22 (proposals, awaiting the project owner's approval):
 
-1. `<h3>` trong description: **không**, theo code hiện tại. Đưa quy tắc này vào content skill để đổi được mà không sửa code.
-2. Heartbeat worker: **có**, bắt buộc trong v2 (xem §6).
-3. Class lỗi có `code` thay regex: **có**.
-4. Vá store scope và race duplicate guard: **có**, làm ngay trong bản dựng.
-5. Backend mockup mặc định `chatgpt`: **có**.
-
----
-
-## 1. Mục tiêu và phi mục tiêu
-
-**Mục tiêu v1**
-
-1. Nhiều người dùng đồng thời (designer, seller, leader, admin), phân quyền theo team và store.
-2. Điều phối job AI công bằng trên số account giới hạn: quota, ưu tiên, hàng đợi minh bạch.
-3. Luồng designer: upload → redesign/variation → mockup → duyệt.
-4. Luồng seller: phân tích sản phẩm → sinh title/description/tags/SEO đa ngôn ngữ → sửa → push Shopify.
-5. Skills: registry, editor, version, chạy thử, gán vào luồng.
-6. Hợp đồng rõ ràng với worker/skills của ngatruong123, chạy song song được với mockup-worker hiện tại.
-
-**Phi mục tiêu v1**: bán SaaS ra ngoài (multi-org, billing), marketplace ngoài Shopify, auto-push không người bấm, lưu credential ChatGPT/Grok trong webapp.
+1. `<h3>` in descriptions: **no**, consistent with the current code. Put this rule in the content skill so it can change without code changes.
+2. Worker heartbeat: **yes**, mandatory in v2 (see §6).
+3. Error classes with `code` instead of regex: **yes**.
+4. Fix store scope and the duplicate guard race: **yes**, implement immediately in the build.
+5. Default mockup backend `chatgpt`: **yes**.
 
 ---
 
-## 2. Ranh giới trách nhiệm
+## 1. Goals and non-goals
 
-| Hạng mục | Webapp (bạn) | Worker/Skills (ngatruong123) | Chung |
+**v1 goals**
+
+1. Multiple concurrent users (designer, seller, leader, admin), with team- and store-scoped permissions.
+2. Fair AI job scheduling across a limited number of accounts: quotas, priorities, a transparent queue.
+3. Designer flow: upload → redesign/variation → mockup → approve.
+4. Seller flow: product analysis → generate multilingual title/description/tags/SEO → edit → push to Shopify.
+5. Skills: registry, editor, versions, test runs, workflow assignments.
+6. A clear contract with workers/skills from the worker team (ngatruong123), compatible with running alongside the current mockup-worker.
+
+**v1 non-goals**: selling external SaaS (multi-org, billing), marketplaces beyond Shopify, automatic push without a human click, storing ChatGPT/Grok credentials in the webapp.
+
+---
+
+## 2. Responsibility boundaries
+
+| Item | Webapp (web team) | Worker/Skills (worker team, ngatruong123) | Shared |
 |---|---|---|---|
-| Auth, RBAC, team, store grant | ✓ | | |
+| Auth, RBAC, team, store grants | ✓ | | |
 | Job API, scheduler, quota, ledger | ✓ | | |
-| Browser automation, login account, profile, proxy | | ✓ | |
-| Credential account AI | | ✓ (chỉ trên máy worker) | |
-| Nội dung prompt/skill | lưu, version, phân phối | viết, kiểm chứng | |
-| Validator skill (Python) | gọi qua job | sở hữu | |
-| Hợp đồng API (OpenAPI + JSON Schema) | | | ✓ `packages/contracts` |
-| Object storage | cấp presigned URL | upload/download | |
+| Browser automation, account sign-in, profiles, proxies | | ✓ | |
+| AI account credentials | | ✓ (worker machines only) | |
+| Prompt/skill content | storage, versioning, distribution | authoring, verification | |
+| Skill validator (Python) | invoke through jobs | ownership | |
+| API contract (OpenAPI + JSON Schema) | | | ✓ `packages/contracts` |
+| Object storage | issue presigned URLs | upload/download | |
 | Shopify push | ✓ | | |
 
-Quy tắc merge: **không chia sẻ DB, không chia sẻ filesystem**. Hai bên chỉ gặp nhau ở HTTP contract và object storage. Nhờ vậy khác stack (ngatruong123/redesign dùng Next.js + Prisma, PRD dùng TanStack Start + Drizzle, worker dùng Python) không còn là vấn đề.
+Merge rule: **no shared DB, no shared filesystem**. The two teams meet only at the HTTP contract and object storage. This removes stack differences as an issue (ngatruong123/redesign uses Next.js + Prisma, the PRD uses TanStack Start + Drizzle, workers use Python).
 
 ---
 
-## 3. Kiến trúc đề xuất
+## 3. Proposed architecture
 
 ```
-Người dùng (designer / seller / leader / admin)
-   │ SSO + session DB
+Users (designer / seller / leader / admin)
+   │ SSO + DB sessions
    ▼
 apps/web  (UI + server functions + REST /api/v2)
    │                                   ▲
    ▼                                   │ presigned URL
-Postgres (bảng app + pgboss.*) ◄── apps/jobs (Node, pg-boss)
+Postgres (app tables + pgboss.*) ◄── apps/jobs (Node, pg-boss)
    ▲                                   push, text-LLM, product analysis,
    │                                   reapers, scheduler tick, notify
    │ /api/v2/worker/*  (register, claim, heartbeat, complete, fail, account-status)
    │
-AI workers (ngatruong123): chatgpt@accN, grok@accN, gemini-api, ...
-   │ chạy trên 1 hoặc nhiều máy
+AI workers (worker team, ngatruong123): chatgpt@accN, grok@accN, gemini-api, ...
+   │ run on 1 or more machines
    ▼
-Object storage (MinIO self-host hoặc Cloudflare R2)
+Object storage (self-hosted MinIO or Cloudflare R2)
 ```
 
-Nguyên tắc:
+Principles:
 
-- Worker không đọc DB, không đọc filesystem của webapp. Bỏ ràng buộc "cùng máy" của PRD §1.3.
-- Server quyết định job nào chạy tiếp (scheduler). Worker chỉ claim theo capability của account nó đang giữ.
-- Credential account AI nằm trên máy worker. Webapp chỉ biết metadata và sức khoẻ account.
-- `packages/core` thuần TypeScript, không phụ thuộc framework, như PRD §3, để port logic push/SEO.
+- Workers do not read the DB or the webapp filesystem. Remove the "same machine" constraint from PRD §1.3.
+- The server decides which job runs next (scheduler). Workers only claim according to the capabilities of the accounts they hold.
+- AI account credentials reside on worker machines. The webapp only knows account metadata and health.
+- `packages/core` is framework-independent TypeScript, as in PRD §3, for porting push/SEO logic.
 
 Monorepo:
 
 ```
-apps/web             TanStack Start (hoặc Next.js, xem Q6)
+apps/web             TanStack Start (or Next.js, see Q6)
 apps/jobs            Node + pg-boss
 packages/core        catalog, pricing, seo, push, generation, quota, skills, rbac
 packages/db          drizzle schema + migrations
-packages/contracts   OpenAPI worker v2 + JSON Schema skill manifest → sinh TS types + Pydantic
-packages/skill-schema  schema master data niche (dùng chung với POD Skill Studio nếu team đồng ý)
-packages/ui          design token (PRD §11.2) + shadcn
-tools/fake-worker    worker giả để test scheduler/quota, không cần Chrome
+packages/contracts   OpenAPI worker v2 + JSON Schema skill manifest → generate TS types + Pydantic
+packages/skill-schema  niche master data schema (shared with POD Skill Studio if the team agrees)
+packages/ui          design tokens (PRD §11.2) + shadcn
+tools/fake-worker    fake worker for scheduler/quota tests, no Chrome required
 ```
 
 ---
 
-## 4. Người dùng và phân quyền
+## 4. Users and permissions
 
-Mô hình: 1 Organization (công ty) → nhiều Team (ví dụ Wall Art, Apparel) → User. Store được cấp cho team, có thể override theo user.
+Model: 1 Organization (company) → multiple Teams (for example Wall Art, Apparel) → Users. Stores are granted to teams, with per-user overrides available.
 
-| Role | Quyền chính |
+| Role | Main permissions |
 |---|---|
-| Admin | user, team, store, Shopify credential, provider account, quota policy, publish skill, xem mọi audit |
-| Leader | quản lý thành viên team, duyệt design/listing, đặt ưu tiên job, xem KPI và usage của team, push |
-| Designer | upload design, redesign, mockup, duyệt ảnh, dùng skill đã publish, tạo skill draft (nếu được cấp) |
-| Seller | phân tích sản phẩm, tạo product, sửa content, preview, push trên store được cấp |
-| Viewer | chỉ xem |
+| Admin | users, teams, stores, Shopify credentials, provider accounts, quota policies, skill publishing, access to all audits |
+| Leader | manage team members, approve designs/listings, set job priorities, view team KPIs and usage, push |
+| Designer | upload designs, redesign, mockup, approve images, use published skills, create skill drafts (if granted) |
+| Seller | analyze products, create products, edit content, preview, push to granted stores |
+| Viewer | read-only |
 
-- Permission là chuỗi (`job.create`, `job.priority.set`, `result.approve`, `product.create`, `product.push`, `store.manage`, `skill.edit`, `skill.publish`, `quota.manage`, `account.manage`, `user.manage`). Role là tập permission. Kiểm tra trong `core`, không chỉ ở UI.
-- Mọi truy vấn có store đi qua `assertStoreAccess(principal, storeId, perm)`, cộng với các guard store-scope của PRD §4.6.
-- Service principal: `worker` (mỗi worker một token, lưu hash, scope `worker:*`) và `agent` (diprr, scope hạn chế, cờ `push_allowed` riêng). Thay `WORKER_TOKEN`/`AGENT_TOKEN` chung.
-- Auth: SSO (Google Workspace hoặc Lark OAuth, xem Q3), dự phòng invite email + mật khẩu. Session lưu DB để thu hồi được.
-- `activity_log` thêm `actor_user_id`, `actor_kind` (user/agent/worker/system).
+- Permissions are strings (`job.create`, `job.priority.set`, `result.approve`, `product.create`, `product.push`, `store.manage`, `skill.edit`, `skill.publish`, `quota.manage`, `account.manage`, `user.manage`). Roles are sets of permissions. Check in `core`, not just in the UI.
+- All store-related queries go through `assertStoreAccess(principal, storeId, perm)`, plus the store-scope guards from PRD §4.6.
+- Service principals: `worker` (one token per worker, stored as a hash, scope `worker:*`) and `agent` (diprr, limited scope, separate `push_allowed` flag). Replace the shared `WORKER_TOKEN`/`AGENT_TOKEN`.
+- Auth: SSO (Google Workspace or Lark OAuth, see Q3), with email invite + password as a fallback. Sessions are stored in the DB for revocation.
+- Add `actor_user_id`, `actor_kind` (user/agent/worker/system) to `activity_log`.
 
 ---
 
-## 5. Quota và điều phối account (trọng tâm)
+## 5. Quotas and account scheduling (focus)
 
-### 5.1 Vấn đề
+### 5.1 Problem
 
-- Account subscription (ChatGPT, Grok) có giới hạn ẩn, không công bố số chính xác, hay bị cooldown và hết phiên. Một account xử lý một job một lúc (PRD §16.2).
-- API (Gemini, OpenAI, DeepSeek) giới hạn theo RPM/TPM và tính tiền.
-- FIFO thuần: một người upload 200 design là chiếm hết hàng đợi của cả công ty.
+- Subscription accounts (ChatGPT, Grok) have hidden limits with no published exact numbers, and frequently encounter cooldowns and expired sessions. One account processes one job at a time (PRD §16.2).
+- APIs (Gemini, OpenAI, DeepSeek) have RPM/TPM limits and charge for usage.
+- Pure FIFO: one person uploading 200 designs takes over the entire company's queue.
 
-### 5.2 Khái niệm
+### 5.2 Concepts
 
-- **`provider_account`**: một account cụ thể (chatgpt-acc1, grok1, gemini-key-a). Có capabilities (mockup, redesign, content, analysis) và trạng thái `active | busy | cooldown(until) | session_expired | disabled`. Worker báo trạng thái, admin bật/tắt.
-- **Capacity unit**: chi phí quy đổi cho từng cặp job type × backend, cấu hình được. Ví dụ ban đầu: mockup ChatGPT = 10, content qua browser = 3, content qua API = 1. Không hardcode giới hạn nhà cung cấp; đo thực tế rồi chỉnh.
-- **`quota_policy`**: scope (user | team | role) × job type/provider × window (ngày | tháng) → `limit_units`, `max_inflight`, `max_pending`.
-- **`quota_ledger`**: reserve lúc enqueue, commit lúc complete, release lúc cancel hoặc lỗi không do người dùng.
+- **`provider_account`**: a specific account (chatgpt-acc1, grok1, gemini-key-a). Has capabilities (mockup, redesign, content, analysis) and status `active | busy | cooldown(until) | session_expired | disabled`. Workers report status; admins enable/disable accounts.
+- **Capacity unit**: normalized cost for each job type × backend pair, configurable. Initial examples: ChatGPT mockup = 10, browser content = 3, API content = 1. Do not hardcode provider limits; measure actual usage and adjust.
+- **`quota_policy`**: scope (user | team | role) × job type/provider × window (day | month) → `limit_units`, `max_inflight`, `max_pending`.
+- **`quota_ledger`**: reserve at enqueue, commit at completion, release on cancellation or errors not caused by the user.
 
-### 5.3 Luồng
+### 5.3 Flow
 
-1. **Enqueue**: kiểm tra quyền → reserve quota → tạo job `pending` (hoặc `waiting_quota`), trả vị trí hàng đợi và ETA ước tính.
-2. **Claim** (worker gọi): server chọn theo thứ tự priority tier (`interactive` > `normal` > `bulk`) → round-robin theo người yêu cầu (ai đang có ít job chạy nhất đi trước) → `created_at`. Vẫn dùng `FOR UPDATE SKIP LOCKED` như PRD. Tôn trọng `max_inflight` theo user và team.
-3. **Lease + heartbeat**: `lease_expires_at` ngắn (ví dụ 5 phút), worker heartbeat mỗi 60 giây. Reaper dựa vào lease, không dựa `claimed_at` 30 phút. Luồng ChatGPT chạy 15-20 phút không còn bị cắt nhầm.
-4. **Fail có phân loại** `error_class`:
+1. **Enqueue**: check permissions → reserve quota → create a `pending` job (or `waiting_quota`), return queue position and estimated ETA.
+2. **Claim** (worker call): the server selects by priority tier (`interactive` > `normal` > `bulk`) → round-robin by requester (those with the fewest running jobs go first) → `created_at`. Still uses `FOR UPDATE SKIP LOCKED` as in the PRD. Respects per-user and per-team `max_inflight`.
+3. **Lease + heartbeat**: short `lease_expires_at` (for example 5 minutes), worker heartbeat every 60 seconds. The reaper uses the lease, not 30 minutes from `claimed_at`. ChatGPT flows running 15-20 minutes are no longer cut off incorrectly.
+4. **Classified failures** with `error_class`:
 
-   | error_class | Xử lý job | Xử lý account | Tính attempt | Trừ quota |
+   | error_class | Job handling | Account handling | Count attempt | Deduct quota |
    |---|---|---|---|---|
-   | `account_rate_limited` (+ `retry_after_s`) | về `pending` | cooldown | không | không |
-   | `account_session_expired` | về `pending` | `session_expired`, báo admin | không | không |
-   | `provider_refused` | `failed`, báo người dùng sửa prompt/design | giữ nguyên | có | có (tuỳ policy) |
-   | `transient` | retry có backoff | giữ nguyên | có | không |
-   | `permanent` | `error_permanent` | giữ nguyên | | không |
+   | `account_rate_limited` (+ `retry_after_s`) | return to `pending` | cooldown | no | no |
+   | `account_session_expired` | return to `pending` | `session_expired`, notify admin | no | no |
+   | `provider_refused` | `failed`, ask the user to revise the prompt/design | unchanged | yes | yes (depending on policy) |
+   | `transient` | retry with backoff | unchanged | yes | no |
+   | `permanent` | `error_permanent` | unchanged | | no |
 
-5. **Complete**: commit ledger, lưu kết quả, thông báo sau commit (như PRD §14).
+5. **Complete**: commit the ledger, store results, notify after commit (as in PRD §14).
 
-### 5.4 Giảm tiêu hao quota
+### 5.4 Reduce quota consumption
 
-- **Text task chạy qua API**, không qua browser ChatGPT. PRD hiện sinh content bằng browser (§16.6), chiếm slot của account vẽ ảnh. Chuyển listing content và product analysis sang API LLM trong `apps/jobs`. Cần ngatruong123 đồng ý và duyệt ngân sách API.
-- **Mockup template** (composite bằng sharp/Fabric như `ngatruong123/redesign`) cho ảnh chuẩn (khung trơn, flat lay): không tốn quota AI. AI dành cho cảnh lifestyle.
-- **Cache/dedupe**: cùng `sha256(design) + skill_version + params` thì cho phép dùng lại kết quả.
-- **Bulk chạy ngoài giờ**: hàng `bulk` được ưu tiên ban đêm, `interactive` ưu tiên giờ hành chính.
-- **Minh bạch**: người dùng luôn thấy vị trí hàng đợi, ETA, số dư quota, lý do đang chờ.
+- **Run text tasks through APIs**, not the ChatGPT browser. The PRD currently generates content through the browser (§16.6), taking slots from image-generation accounts. Move listing content and product analysis to LLM APIs in `apps/jobs`. Requires agreement from the worker team (ngatruong123) and API budget approval.
+- **Mockup templates** (compositing with sharp/Fabric as in `ngatruong123/redesign`) for standard images (plain frames, flat lay): no AI quota consumption. Reserve AI for lifestyle scenes.
+- **Cache/dedupe**: allow result reuse for identical `sha256(design) + skill_version + params`.
+- **Off-hours bulk runs**: the `bulk` queue is prioritized at night, `interactive` during business hours.
+- **Transparency**: users always see queue position, ETA, remaining quota, and why they are waiting.
 
 ---
 
-## 6. Hợp đồng worker v2 (làm chung với ngatruong123)
+## 6. Worker v2 contract (joint work with the worker team, ngatruong123)
 
-v1 (PRD §8.5) vẫn chạy song song cho mockup-worker hiện tại, rồi tắt ở P9.
+v1 (PRD §8.5) continues running alongside the current mockup-worker, then is disabled in P9.
 
-| Endpoint | Mục đích |
+| Endpoint | Purpose |
 |---|---|
-| `POST /api/v2/worker/register` | worker khai báo id, host, version, accounts[], capabilities |
-| `POST /api/v2/worker/claim` | `{worker_id, account_id, capabilities, job_types}` → `{job, inputs[presigned GET], skill:{id, version, manifest_url}, lease_expires_at}`; 204 khi hết job |
-| `POST /api/v2/worker/jobs/:id/heartbeat` | gia hạn lease, progress (tuỳ chọn), log ngắn |
-| `POST /api/v2/worker/jobs/:id/uploads` | xin presigned PUT cho N output |
-| `POST /api/v2/worker/jobs/:id/complete` | `{outputs:[{key, sha256, width, height, meta}]}` hoặc `{payload}` cho content; idempotent theo key |
+| `POST /api/v2/worker/register` | workers declare id, host, version, accounts[], capabilities |
+| `POST /api/v2/worker/claim` | `{worker_id, account_id, capabilities, job_types}` → `{job, inputs[presigned GET], skill:{id, version, manifest_url}, lease_expires_at}`; 204 when no jobs remain |
+| `POST /api/v2/worker/jobs/:id/heartbeat` | renew lease, progress (optional), short log |
+| `POST /api/v2/worker/jobs/:id/uploads` | request presigned PUT URLs for N outputs |
+| `POST /api/v2/worker/jobs/:id/complete` | `{outputs:[{key, sha256, width, height, meta}]}` or `{payload}` for content; idempotent by key |
 | `POST /api/v2/worker/jobs/:id/fail` | `{error_class, message, retry_after_s?}` |
 | `POST /api/v2/worker/accounts/:id/status` | `{status, cooldown_until?, installed_skills?}` |
 
-- Contract nằm ở `packages/contracts` (OpenAPI 3.1 + JSON Schema), sinh TS types và Pydantic model. Contract test chạy ở cả hai repo. Đổi contract thì bump version.
-- `tools/fake-worker` giúp webapp test độc lập, không phụ thuộc tiến độ worker thật.
+- The contract lives in `packages/contracts` (OpenAPI 3.1 + JSON Schema), generating TS types and Pydantic models. Contract tests run in both repos. Bump the version when changing the contract.
+- `tools/fake-worker` enables independent webapp testing without depending on real worker progress.
 
 ---
 
 ## 7. Skills
 
-### 7.1 Ba loại "skill" đang tồn tại (cần xác nhận Q9)
+### 7.1 Three existing "skill" types (confirmation needed in Q9)
 
-| Loại | Ví dụ | Chạy ở đâu | Webapp làm gì |
+| Type | Example | Where it runs | Webapp responsibility |
 |---|---|---|---|
-| Prompt template | `SCENE_PROMPTS` (poster, tshirt, mug...), `REDESIGN_PROMPT`, content prompt theo niche (PRD §16.8-16.9) | Worker tải theo version | Lưu, version, editor, gán vào luồng |
-| Provider skill | `@create-wall-art-mockups` phải cài trên mọi account ChatGPT (PRD §16.8) | Trong account ChatGPT | Theo dõi account nào đã cài bản nào, cảnh báo thiếu |
-| Niche design agent | Output của `Vet-Group/pod-skill-builder`: master data schema 2.0 → `SKILL.md` + zip | Agent/worker | Editor master data, validate, build, publish, phân phối |
+| Prompt template | `SCENE_PROMPTS` (poster, tshirt, mug...), `REDESIGN_PROMPT`, niche-specific content prompts (PRD §16.8-16.9) | Workers download by version | Storage, versioning, editor, workflow assignments |
+| Provider skill | `@create-wall-art-mockups` must be installed on every ChatGPT account (PRD §16.8) | Within the ChatGPT account | Track which accounts have which versions installed, warn about missing installations |
+| Niche design agent | Output of `Vet-Group/pod-skill-builder`: master data schema 2.0 → `SKILL.md` + zip | Agent/worker | Master data editor, validate, build, publish, distribute |
 
-### 7.2 Dữ liệu
+### 7.2 Data
 
 - `skills` (kind, slug, name, niche, owner_team, visibility)
-- `skill_versions` (semver, status `draft | in_review | published | deprecated`, manifest jsonb, artifact_key cho zip, checksum, schema_version, changelog, created_by, published_by)
-- `skill_bindings` (job type × product type × niche × backend → skill_version; mặc định toàn công ty, override theo team)
-- `skill_test_runs` (version, design mẫu, job ids, approval rate)
-- Version đã publish là **bất biến**. Mỗi job lưu `skill_version_id` để truy vết ảnh nào sinh từ prompt nào.
+- `skill_versions` (semver, status `draft | in_review | published | deprecated`, manifest jsonb, artifact_key for zip, checksum, schema_version, changelog, created_by, published_by)
+- `skill_bindings` (job type × product type × niche × backend → skill_version; company-wide defaults, per-team overrides)
+- `skill_test_runs` (version, sample designs, job ids, approval rate)
+- Published versions are **immutable**. Each job stores `skill_version_id` to trace which prompt generated each image.
 
 ### 7.3 UI-UX
 
-- **Thư viện**: lọc theo kind, niche, product type, trạng thái; hiện version, approval rate, người sở hữu.
-- **Editor prompt template**: biến `{count}`, `{product_type}`; cảnh báo khi có mention `@skill` (worker phải gõ mention bằng phím thật, PRD §16.6 bước 6); preview prompt sau khi render.
-- **Editor niche agent**: wizard theo section như POD Skill Studio (`app/src/lib/schema/sections.ts`, `types.ts`): personas, occasions, emotions, visual vocabulary...; badge `count/min`; field tham chiếu chéo là dropdown; hằng số cố định (nền `#00FF00`, tỉ lệ 3:4) chỉ đọc; tab JSON thô.
-- **Validate**: không viết lại validator bằng TS. Gọi `create_pod_design_skill.py --validate-only` qua job `skill-validate` (Python sidecar hoặc worker), map lỗi về field (tái dùng ý tưởng `parseValidatorOutput.ts`, `errorIndex.ts`).
-- **Review và publish**: diff giữa 2 version, Leader/Admin duyệt trước khi publish.
-- **Chạy thử**: chọn 1-3 design mẫu, chạy bằng budget "sandbox" riêng, so với version đang dùng (A/B).
-- **Gán skill**: bảng binding, rollout theo team.
-- **KPI chất lượng**: approval rate kết quả ảnh theo skill version × backend (có sẵn cột `approved` ở PRD §5.2). Đây là dữ liệu để quyết định prompt nào tốt hơn.
+- **Library**: filter by kind, niche, product type, status; show version, approval rate, owner.
+- **Prompt template editor**: variables `{count}`, `{product_type}`; warn about `@skill` mentions (workers must type mentions with real keystrokes, PRD §16.6 step 6); preview the rendered prompt.
+- **Niche agent editor**: section-based wizard as in POD Skill Studio (`app/src/lib/schema/sections.ts`, `types.ts`): personas, occasions, emotions, visual vocabulary...; `count/min` badges; cross-reference fields are dropdowns; fixed constants (background `#00FF00`, aspect ratio 3:4) are read-only; raw JSON tab.
+- **Validate**: do not rewrite the validator in TS. Call `create_pod_design_skill.py --validate-only` through a `skill-validate` job (Python sidecar or worker), map errors to fields (reuse ideas from `parseValidatorOutput.ts`, `errorIndex.ts`).
+- **Review and publish**: diff between 2 versions, Leader/Admin approval before publishing.
+- **Test runs**: select 1-3 sample designs, run with a separate "sandbox" budget, compare with the current version (A/B).
+- **Assign skills**: binding table, per-team rollout.
+- **Quality KPI**: image result approval rate by skill version × backend (the `approved` column already exists in PRD §5.2). This data determines which prompts perform better.
 
-Đề xuất thêm: tách `packages/skill-schema` để POD Skill Studio (Tauri) và web editor dùng chung một schema. Cần hỏi team pod-skill-builder.
+Additional proposal: extract `packages/skill-schema` so POD Skill Studio (Tauri) and the web editor share one schema. Ask the pod-skill-builder team.
 
 ---
 
-## 8. UX theo persona
+## 8. Persona-based UX
 
-Điều hướng:
+Navigation:
 
 - **Studio** (designer): Designs, Redesign, Mockups, Review
 - **Listing** (seller): Analyze, Products, Content, Push
@@ -237,30 +237,30 @@ v1 (PRD §8.5) vẫn chạy song song cho mockup-worker hiện tại, rồi tắ
 - **Team** (leader): Dashboard, Approvals, Usage
 - **Admin**: Users & Teams, Stores, AI Accounts & Workers, Quota, Audit log
 
-Màn hình chính:
+Main screens:
 
-1. **Design library**: upload hàng loạt (kéo cả thư mục), dedupe sha256, gắn niche/product type/tag, tìm kiếm, trạng thái pipeline của từng design.
-2. **Tạo job** (redesign/mockup): chọn design, product type, skill (mặc định theo binding), số lượng, backend "tự động" hoặc ghim; hiện chi phí unit, số dư, ETA **trước khi bấm**.
-3. **Hàng đợi của tôi**: vị trí, ETA, trạng thái, huỷ, chạy lại; realtime qua SSE thay vì poll 2-3 giây.
-4. **Review**: lưới ảnh, phím tắt (A duyệt, R loại, ←/→), đặt cạnh design gốc, duyệt hàng loạt, lý do loại (dữ liệu để cải tiến skill).
-5. **Product analysis** (seller): đầu vào là design/ảnh + niche + (tuỳ chọn) link đối thủ. Đầu ra: audience, dịp, keyword chính/phụ, góc bán, cảnh báo IP/trademark, product type và giá gợi ý. Dùng làm context cho content.
-6. **Listing studio**: tạo product từ kết quả đã duyệt (PRD §6.4); editor đa locale có bộ đếm giới hạn (SEO title 60, SEO description 155, 13 tag, handle); cảnh báo keyword trùng trong store; sinh lại từng trường; lịch sử bản content.
-7. **Push**: preview/dry-run so với Shopify, chọn publish status, cần quyền `product.push`, tuỳ policy cần Leader duyệt.
-8. **Leader dashboard**: throughput design → mockup → listing → push, cycle time duyệt, approval rate, usage quota theo user/team, job lỗi.
-9. **AI Accounts & Workers** (admin): trạng thái account, cooldown, session hết hạn (nút "đã đăng nhập lại"), worker online, job đang chạy, skill đã cài trên account.
+1. **Design library**: bulk upload (drag entire folders), sha256 dedupe, niche/product type/tag assignment, search, pipeline status for each design.
+2. **Create job** (redesign/mockup): select designs, product type, skill (default from binding), quantity, "automatic" backend or a pinned backend; show unit cost, balance, ETA **before clicking**.
+3. **My queue**: position, ETA, status, cancel, rerun; realtime through SSE instead of polling every 2-3 seconds.
+4. **Review**: image grid, keyboard shortcuts (A approve, R reject, ←/→), beside the original design, bulk approval, rejection reasons (data for skill improvement).
+5. **Product analysis** (seller): inputs are design/image + niche + (optional) competitor link. Outputs: audience, occasion, primary/secondary keywords, sales angles, IP/trademark warnings, suggested product type and price. Used as context for content.
+6. **Listing studio**: create products from approved results (PRD §6.4); multi-locale editor with limit counters (SEO title 60, SEO description 155, 13 tags, handle); duplicate keyword warnings within the store; regenerate individual fields; content version history.
+7. **Push**: preview/dry-run against Shopify, select publish status, requires `product.push`, Leader approval depending on policy.
+8. **Leader dashboard**: design → mockup → listing → push throughput, approval cycle time, approval rate, quota usage by user/team, failed jobs.
+9. **AI Accounts & Workers** (admin): account status, cooldown, expired sessions ("Signed in again" button), online workers, running jobs, skills installed on accounts.
 
 ---
 
-## 9. Dữ liệu: thay đổi so với PRD
+## 9. Data: changes from the PRD
 
-Giữ các bảng PRD §4.1-4.4. Thêm:
+Retain the tables from PRD §4.1-4.4. Add:
 
 ```
 users, sessions, invites, teams, team_members(role), role_permissions
 store_grants(team_id | user_id, store_id, permissions[])
 service_clients(kind worker|agent, name, token_hash, scopes, push_allowed, last_used_at, revoked_at)
 assets(storage_key, sha256, mime, width, height, bytes, owner_user_id, team_id)
-designs            + created_by, team_id, niche, tags, asset_id (thay source_file)
+designs            + created_by, team_id, niche, tags, asset_id (replaces source_file)
 generation_jobs    (= mockup_jobs) + requested_by, team_id, priority, cost_units,
                    lease_expires_at, account_id, skill_version_id, error_class,
                    not_before, idempotency_key, queue_state
@@ -273,77 +273,77 @@ approvals(entity, entity_id, requested_by, decided_by, status)
 activity_log       + actor_user_id, actor_kind
 ```
 
-Giữ quy ước PRD: PK text nanoid, không Postgres enum, `timestamptz`. Vá luôn các lỗi PRD đã chỉ ra: duplicate guard bằng unique `(store_id, source_job_id, result_set_hash)`; lọc stage trước khi phân trang; class lỗi thay regex; thêm store scope cho `rollbackThemeBackup`, `fixFindings`, `ignoreFinding`.
+Retain PRD conventions: text nanoid PKs, no Postgres enums, `timestamptz`. Also fix the issues identified by the PRD: duplicate guard using unique `(store_id, source_job_id, result_set_hash)`; stage filtering before pagination; error classes instead of regex; add store scope to `rollbackThemeBackup`, `fixFindings`, `ignoreFinding`.
 
 ---
 
-## 10. Lộ trình
+## 10. Roadmap
 
-| Phase | Nội dung | Nghiệm thu |
+| Phase | Contents | Acceptance |
 |---|---|---|
-| **P0 Chốt** (khoảng 1 tuần) | Trả lời §12; lấy quyền repo storekit/mockup-worker; họp contract với ngatruong123; wireframe 6 màn chính; chốt stack | Contract v2 draft được 2 bên duyệt; wireframe duyệt; ADR stack |
-| **P1 Nền móng** | Monorepo, DB, SSO + invite, session DB, RBAC, team, store grant, audit log, khung UI + token | Admin mời user, gán role; seller không thấy store không được cấp (có test) |
-| **P2 Asset + Design** | Object storage, presigned URL, upload hàng loạt, dedupe, design library | Upload 200 file không trùng, có thumbnail |
-| **P3 Scheduler + Quota** | generation_jobs, claim công bằng, lease/heartbeat, error_class, ledger, provider_accounts, trang workers, v1 compat, fake-worker | 10 user × 50 job: không double claim; không ai phải chờ hết batch của người khác; rate limit không tốn attempt; hết quota thì `waiting_quota` |
-| **P4 Designer studio** | Tạo job, hàng đợi (SSE), review, duyệt | upload → mockup → duyệt chạy được với fake-worker và 1 worker thật |
-| **P5 Catalog + Listing** | PRD P2 + P5: product type, bảng giá, tạo product, fan-out content, editor, product analysis qua API | Tạo product N locale, stage `ready`, bản sửa tay thắng bản sinh |
-| **P6 Push** | Logic 14 bước PRD P6 + permission + approval policy | Dry run khớp snapshot; push store dev đúng mọi bất biến PRD §20 |
-| **P7 Skills** | Registry, version, editor prompt template, wizard niche, validate sidecar, binding, chạy thử | Publish prompt poster v2 thì job mới dùng v2, job cũ vẫn trỏ v1; có approval rate theo version |
-| **P8 Leader + Ops** | Dashboard KPI, usage, thông báo (Lark hoặc Buzz), backup, monitoring, deploy chờ queue rảnh | Leader xem usage theo user; có alert khi account `session_expired` |
-| **P9 Migration** | Import dữ liệu storekit prod (nếu có) vào team mặc định, giữ id; chuyển mockup-worker sang v2; tắt v1 | Số hàng khớp; GID Shopify giữ nguyên; push lại ra `skipped` |
-| **P10 (tuỳ chọn)** | Translate, audit, blog, theme (PRD P8-P10) | Theo PRD |
+| **P0 Finalize** (about 1 week) | Answer §12; obtain access to the storekit/mockup-worker repos; contract meeting with the worker team (ngatruong123); wireframes for 6 main screens; finalize the stack | Contract v2 draft approved by 2 teams; wireframes approved; stack ADR |
+| **P1 Foundation** | Monorepo, DB, SSO + invites, DB sessions, RBAC, teams, store grants, audit log, UI shell + tokens | Admin invites users, assigns roles; sellers cannot see stores they have not been granted (tested) |
+| **P2 Asset + Design** | Object storage, presigned URLs, bulk upload, dedupe, design library | Upload 200 files without duplicates, with thumbnails |
+| **P3 Scheduler + Quota** | generation_jobs, fair claims, lease/heartbeat, error_class, ledger, provider_accounts, workers page, v1 compatibility, fake-worker | 10 users × 50 jobs: no double claims; no one must wait for another person's entire batch; rate limits do not consume attempts; exhausted quota leads to `waiting_quota` |
+| **P4 Designer studio** | Job creation, queue (SSE), review, approval | upload → mockup → approve works with fake-worker and 1 real worker |
+| **P5 Catalog + Listing** | PRD P2 + P5: product types, price tables, product creation, content fan-out, editor, product analysis through APIs | Create products in N locales, stage `ready`, manual edits take precedence over generated content |
+| **P6 Push** | 14-step logic from PRD P6 + permissions + approval policy | Dry run matches snapshots; dev store push satisfies all PRD §20 invariants |
+| **P7 Skills** | Registry, versions, prompt template editor, niche wizard, validator sidecar, bindings, test runs | Publishing poster prompt v2 makes new jobs use v2, while old jobs still reference v1; approval rate available by version |
+| **P8 Leader + Ops** | KPI dashboard, usage, notifications (Lark or Buzz), backup, monitoring, deployment waits for an idle queue | Leaders view usage by user; alert when an account is `session_expired` |
+| **P9 Migration** | Import storekit prod data (if any) into the default team, retain ids; switch mockup-worker to v2; disable v1 | Row counts match; Shopify GIDs are preserved; repeat pushes return `skipped` |
+| **P10 (optional)** | Translation, audit, blog, theme (PRD P8-P10) | Per the PRD |
 
-Có thể song song: sau P3, ngatruong123 phát triển worker v2 dựa vào contract và fake-worker, không phải chờ UI.
-
----
-
-## 11. Rủi ro
-
-- **Điều khoản sử dụng**: tự động hoá account ChatGPT/Grok bản consumer có thể vi phạm điều khoản và bị khoá. Cần phương án API dự phòng cho luồng quan trọng, không phụ thuộc 1-2 account.
-- **Giới hạn ẩn thay đổi**: quota phải cấu hình được và điều chỉnh theo sự kiện rate limit thực tế.
-- **Skill ngoài hệ thống**: account ChatGPT thiếu `@create-wall-art-mockups` sẽ sinh ảnh sai. Cần theo dõi việc cài đặt trên từng account.
-- **Khác stack giữa hai bên**: giảm bằng contract HTTP, không chia sẻ DB.
-- **Dữ liệu prod storekit**: nếu đang chạy, migration phải giữ GID Shopify và checksum để không tạo product trùng.
-- **Secret trong repo công khai**: xem ghi chú bảo mật gửi kèm trong chat.
+Parallel work is possible: after P3, the worker team (ngatruong123) develops worker v2 using the contract and fake-worker, without waiting for the UI.
 
 ---
 
-## 12. Câu hỏi cần bạn trả lời
+## 11. Risks
 
-Ưu tiên cao (chặn P0):
-
-1. **Repo và prod**: storekit và mockup-worker nằm ở đâu, ai sở hữu? storekit có đang chạy production với dữ liệu thật cần migrate không?
-2. **Quy mô**: bao nhiêu designer, seller, leader? Bao nhiêu store? Bao nhiêu design mỗi ngày? Hiện có bao nhiêu account ChatGPT, Grok, Gemini, dự kiến tăng bao nhiêu?
-3. **Đăng nhập**: công ty dùng Google Workspace hay Lark để SSO?
-4. **Quy trình duyệt**: ai được push Shopify? Design/listing có cần Leader duyệt trước khi push không? Seller có thấy mọi store không?
-5. **Quota**: tính theo người hay theo team? Có mức ưu tiên (ví dụ đơn gấp) không? Có ngân sách API (Gemini/OpenAI) làm dự phòng không?
-6. **Stack**: theo PRD (TanStack Start + Drizzle + pg-boss) hay Next.js + Prisma như `ngatruong123/redesign`?
-
-Ưu tiên trung bình:
-
-7. **Hạ tầng**: chạy trên host Ubuntu + Tailscale như PRD, hay VPS/Cloudflare? Object storage chọn MinIO hay R2?
-8. **Phạm vi**: translate, audit, blog, theme có cần trong v1 không?
-9. **Skills**: ngatruong123 làm loại skill nào trong 3 loại ở §7.1? `Vet-Group/pod-skill-builder` (commit của willpine88, thienduy2211) có phải phần skills cần tích hợp không?
-10. **Thông báo**: Lark hay Buzz như PRD?
-11. **Product analysis**: đầu vào là ảnh, link đối thủ (Etsy/Amazon), hay cả hai? Đầu ra cần những trường gì?
-12. **Mockup template**: có muốn thêm mockup composite theo template (không tốn quota AI) như `ngatruong123/redesign` không?
+- **Terms of service**: automating consumer ChatGPT/Grok accounts may violate terms and result in account locks. Critical flows need an API fallback rather than depending on 1-2 accounts.
+- **Changing hidden limits**: quotas must be configurable and adjusted based on actual rate-limit events.
+- **Skills outside the system**: a ChatGPT account missing `@create-wall-art-mockups` generates incorrect images. Track installation per account.
+- **Stack differences between the teams**: mitigate with an HTTP contract, no shared DB.
+- **storekit prod data**: if it is running, migration must preserve Shopify GIDs and checksums to avoid duplicate products.
+- **Secrets in the public repo**: see the security note included in chat.
 
 ---
 
-## 13. Mặc định nếu chưa có trả lời
+## 12. Questions for the project owner
 
-- Stack: TanStack Start + Drizzle + pg-boss, để tái dùng PRD tối đa.
-- Auth: SSO Google Workspace + invite.
-- Storage: MinIO trên cùng host.
-- Text task (content, analysis) chạy qua API.
-- Có heartbeat, có class lỗi, backend mockup mặc định `chatgpt`, description không mở đầu bằng `<h3>`.
-- Không làm translate, audit, blog, theme trong v1.
+High priority (blocks P0):
+
+1. **Repos and prod**: where are storekit and mockup-worker, and who owns them? Is storekit running in production with real data that needs migration?
+2. **Scale**: how many designers, sellers, leaders? How many stores? How many designs per day? How many ChatGPT, Grok, Gemini accounts are available now, and how much growth is expected?
+3. **Sign-in**: does the company use Google Workspace or Lark for SSO?
+4. **Approval workflow**: who can push to Shopify? Do designs/listings require Leader approval before pushing? Can sellers see all stores?
+5. **Quotas**: per person or per team? Are there priority levels (for example urgent orders)? Is there an API budget (Gemini/OpenAI) for fallback?
+6. **Stack**: follow the PRD (TanStack Start + Drizzle + pg-boss), or Next.js + Prisma as in `ngatruong123/redesign`?
+
+Medium priority:
+
+7. **Infrastructure**: run on an Ubuntu + Tailscale host as in the PRD, or VPS/Cloudflare? MinIO or R2 for object storage?
+8. **Scope**: are translation, audit, blog, theme needed in v1?
+9. **Skills**: which of the 3 skill types in §7.1 does the worker team (ngatruong123) build? Is `Vet-Group/pod-skill-builder` (commits by willpine88, thienduy2211) the skills component to integrate?
+10. **Notifications**: Lark or Buzz as in the PRD?
+11. **Product analysis**: inputs are images, competitor links (Etsy/Amazon), or both? Which output fields are needed?
+12. **Mockup templates**: add template-based composite mockups (no AI quota consumption) as in `ngatruong123/redesign`?
 
 ---
 
-## 14. Bước tiếp theo đề xuất
+## 13. Defaults if no answers are provided
 
-1. Bạn trả lời Q1-Q6.
-2. Soạn `packages/contracts` bản nháp (OpenAPI worker v2 + JSON Schema skill manifest) để gửi ngatruong123 review.
-3. Wireframe 6 màn: Design library, Tạo job, Review, Listing studio, Skills editor, AI Accounts & Workers.
-4. Chia P1-P3 thành task chi tiết có file path và test.
+- Stack: TanStack Start + Drizzle + pg-boss, to maximize PRD reuse.
+- Auth: Google Workspace SSO + invites.
+- Storage: MinIO on the same host.
+- Text tasks (content, analysis) run through APIs.
+- Heartbeat and error classes included, default mockup backend `chatgpt`, descriptions do not start with `<h3>`.
+- No translation, audit, blog, theme in v1.
+
+---
+
+## 14. Proposed next steps
+
+1. The project owner answers Q1-Q6.
+2. Draft `packages/contracts` (OpenAPI worker v2 + JSON Schema skill manifest) for review by the worker team (ngatruong123).
+3. Wireframes for 6 screens: Design library, Create job, Review, Listing studio, Skills editor, AI Accounts & Workers.
+4. Break P1-P3 into detailed tasks with file paths and tests.

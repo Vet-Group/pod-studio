@@ -1,35 +1,35 @@
-# P1 Nền móng và Studio
+# P1 Foundation and Studio
 
-Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo job -> fake-worker trả ảnh -> duyệt, không cần worker thật.
+Objective: run the complete thin slice from inviting a user -> upload -> job creation -> fake-worker returns images -> approval, without a real worker.
 
-> Mọi test dưới đây: **PLANNED - not implemented, not executed**. Đường dẫn là đề xuất, tương đối từ root monorepo.
+> Every test below: **PLANNED - not implemented, not executed**. Paths are proposed and relative to the monorepo root.
 
-| ID | Task | Owner | Phụ thuộc | Màn |
+| ID | Task | Owner | Dependencies | Screen |
 |---|---|---|---|---|
-| P1-01 | Monorepo, tooling và test harness cô lập | webapp | không | không |
-| P1-02 | Nền DB: Drizzle schema, migration và quy ước | webapp | P1-01 | không |
-| P1-03 | Đăng nhập email + mật khẩu, tài khoản do admin tạo, lời mời | webapp | P1-02 | 5 |
-| P1-04 | Phân quyền theo store, chuyển owner và audit log | webapp | P1-03 | 5 |
-| P1-05 | Object storage, assets và thư viện design theo store | webapp | P1-04 | 1 |
-| P1-06 | Bảng lease job AI, scheduler công bằng và reaper | webapp | P1-05 | 1 |
-| P1-07 | Worker API v2 routes và token worker | webapp + ngatruong123 | P1-06 | không |
-| P1-08 | tools/fake-worker theo contract | webapp | P1-07 | không |
-| P1-09 | Màn Studio: thư viện design, upload, tạo job, hàng đợi | webapp | P1-08 | 1 |
-| P1-10 | Màn Duyệt ảnh | webapp | P1-09 | 2 |
-| P1-11 | Trạng thái realtime (SSE) và ghi usage_events | webapp | P1-07, P1-08, P1-09 | 1 |
+| P1-01 | Monorepo, tooling and isolated test harness | webapp | none | none |
+| P1-02 | Database foundation: Drizzle schema, migrations and conventions | webapp | P1-01 | none |
+| P1-03 | Email and password sign-in, admin-created accounts, invites | webapp | P1-02 | 5 |
+| P1-04 | Store-scoped permissions, ownership transfer and audit log | webapp | P1-03 | 5 |
+| P1-05 | Object storage, assets and per-store design library | webapp | P1-04 | 1 |
+| P1-06 | AI job lease table, fair scheduler and reaper | webapp | P1-05 | 1 |
+| P1-07 | Worker API v2 routes and worker tokens | webapp + worker team (ngatruong123) | P1-06 | none |
+| P1-08 | tools/fake-worker per the contract | webapp | P1-07 | none |
+| P1-09 | Studio screen: design library, upload, job creation, queue | webapp | P1-08 | 1 |
+| P1-10 | Image review screen | webapp | P1-09 | 2 |
+| P1-11 | Realtime status (SSE) and usage_events recording | webapp | P1-07, P1-08, P1-09 | 1 |
 
 ---
 
-## P1-01 Monorepo, tooling và test harness cô lập
+## P1-01 Monorepo, tooling and isolated test harness
 
 - **Owner:** webapp
-- **Phụ thuộc:** không
-- **Màn prototype:** không
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Dependencies:** none
+- **Prototype screen:** none
+- **PRD reference:** none (new requirement from ADR/contract)
 
-**Mục tiêu.** Dựng khung pnpm monorepo và bộ test chạy local từ clean checkout: mỗi test worker có database Postgres 16 riêng, bucket MinIO riêng, có guard từ chối URL production.
+**Objective.** Set up the pnpm monorepo skeleton and a test suite that runs locally from a clean checkout: each test worker has its own Postgres 16 database and MinIO bucket, with a guard that rejects production URLs.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `package.json`
 - `pnpm-workspace.yaml`
@@ -43,33 +43,33 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `tests/support/guard.ts`
 - `docs/testing.md`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tests/support/guard.test.ts`
-  - DATABASE_URL trỏ host không phải localhost hoặc tên DB không có hậu tố _test thì test dừng ngay
-  - S3 endpoint không phải MinIO local thì từ chối
+  - If DATABASE_URL points to a host other than localhost or the DB name lacks the _test suffix, the test stops immediately
+  - Reject an S3 endpoint that is not local MinIO
 - `tests/support/db.test.ts`
-  - 2 test worker song song tạo 2 database khác nhau, ghi cùng id không va nhau
-  - Cleanup chỉ xoá database do chính test tạo
+  - 2 parallel test workers create 2 different databases; writes with the same id do not collide
+  - Cleanup only deletes databases created by the test itself
 
-**Điều kiện xong**
+**Done criteria**
 
-- `pnpm test` chạy xanh trên máy mới chỉ với Docker + Node
-- Guard production có test đỏ trước khi xanh
-- docs/testing.md có lệnh từ clean checkout
+- `pnpm test` passes on a new machine with only Docker + Node
+- The production guard has a failing test before it passes
+- docs/testing.md includes commands to run from a clean checkout
 
 ---
 
-## P1-02 Nền DB: Drizzle schema, migration và quy ước
+## P1-02 Database foundation: Drizzle schema, migrations and conventions
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-01
-- **Màn prototype:** không
-- **Tham chiếu PRD:** §4.1-4.4
+- **Dependencies:** P1-01
+- **Prototype screen:** none
+- **PRD reference:** §4.1-4.4
 
-**Mục tiêu.** Thiết lập packages/db với quy ước PRD (PK text nanoid, không Postgres enum, timestamptz), migration có thứ tự, bảng users, sessions, stores, audit_log khung.
+**Objective.** Set up packages/db with the PRD conventions (text nanoid PKs, no Postgres enums, timestamptz), ordered migrations, and the initial users, sessions, stores, audit_log tables.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/db/src/schema/index.ts`
 - `packages/db/src/schema/users.ts`
@@ -79,31 +79,31 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `packages/db/migrations/`
 - `packages/db/drizzle.config.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/db/test/migrations.test.ts`
-  - Chạy toàn bộ migration trên DB rỗng thành công, chạy lại lần 2 không đổi gì
-  - Không có kiểu enum Postgres nào trong schema sau migrate (truy vấn pg_type)
+  - All migrations run successfully on an empty DB; running them again for a 2nd time changes nothing
+  - No Postgres enum types exist in the schema after migration (query pg_type)
 - `packages/db/test/ids.test.ts`
-  - newId() sinh chuỗi đúng pattern ^[A-Za-z0-9_-]{8,40}$ của contract
+  - newId() generates strings matching the contract pattern ^[A-Za-z0-9_-]{8,40}$
 
-**Điều kiện xong**
+**Done criteria**
 
-- Migration chạy được trên DB rỗng và idempotent
-- Schema khớp quy ước, có test kiểm
+- Migrations run on an empty DB and are idempotent
+- The schema follows the conventions, with tests to verify them
 
 ---
 
-## P1-03 Đăng nhập email + mật khẩu, tài khoản do admin tạo, lời mời
+## P1-03 Email and password sign-in, admin-created accounts, invites
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-02
-- **Màn prototype:** 5
-- **Tham chiếu PRD:** §10
+- **Dependencies:** P1-02
+- **Prototype screen:** 5
+- **PRD reference:** §10
 
-**Mục tiêu.** better-auth với email + mật khẩu, session lưu Postgres, tắt đăng ký công khai. Admin tạo tài khoản với mật khẩu tạm (bắt đổi lần đầu) hoặc tạo link mời; người được mời tự khai tên và mật khẩu. Không cần SMTP.
+**Objective.** Use better-auth with email + password, store sessions in Postgres, and disable public sign-up. Admins create accounts with a temporary password (a change is required on first sign-in) or create invite links; invitees enter their own name and password. No SMTP is required.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/auth/auth.ts`
 - `packages/core/src/auth/invites.ts`
@@ -114,39 +114,39 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `apps/web/src/app/api/auth/[...all]/route.ts`
 - `apps/web/src/middleware.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/auth/invites.test.ts`
-  - Token chỉ lưu dạng hash, không có bản rõ trong DB
-  - Dùng lại token đã chấp nhận: bị từ chối (replay)
-  - Token hết hạn 7 ngày: bị từ chối
-  - Token đã thu hồi: bị từ chối
-  - Người mời không cấp được quyền mình không có (leo quyền qua lời mời)
-  - Lời mời vào store chỉ tạo được bởi người có store.members của đúng store đó
+  - Tokens are stored only as hashes, with no plaintext in the DB
+  - Reuse of an already accepted token: rejected (replay)
+  - A token expired after 7 days: rejected
+  - A revoked token: rejected
+  - Inviters cannot grant permissions they do not have (privilege escalation through invites)
+  - Store invites can only be created by someone with store.members for that specific store
 - `packages/core/test/auth/signup.test.ts`
-  - Gọi thẳng endpoint sign-up của better-auth: trả lỗi, không tạo user
-  - Tài khoản mật khẩu tạm bị chặn mọi trang trừ đổi mật khẩu
+  - Calling the better-auth sign-up endpoint directly: returns an error and does not create a user
+  - Accounts with temporary passwords are blocked from every page except password change
 - `tests/e2e/auth.spec.ts`
-  - Admin tạo lời mời, copy link, người mới mở link, đặt mật khẩu, vào được app
-  - Đăng xuất thì session bị thu hồi trong DB
+  - An admin creates an invite and copies the link; a new user opens the link, sets a password, and can access the app
+  - Signing out revokes the session in the DB
 
-**Điều kiện xong**
+**Done criteria**
 
-- Toàn bộ kịch bản bypass, replay, hết hạn, thu hồi, leo quyền có test đỏ trước khi xanh
-- Không có đường tạo user nào ngoài admin và lời mời
+- All bypass, replay, expiry, revocation, and privilege escalation scenarios have failing tests before they pass
+- There is no user creation path other than admin creation and invites
 
 ---
 
-## P1-04 Phân quyền theo store, chuyển owner và audit log
+## P1-04 Store-scoped permissions, ownership transfer and audit log
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-03
-- **Màn prototype:** 5
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Dependencies:** P1-03
+- **Prototype screen:** 5
+- **PRD reference:** none (new requirement from ADR/contract)
 
-**Mục tiêu.** Bảng store_members với preset role và permissions[]; hàm can(principal, permission, {storeId}) trong packages/core là nơi kiểm quyền duy nhất; audit_log ghi actor_user_id, actor_kind cho mọi thay đổi quyền và hành động nhạy cảm. Màn Stores và thành viên (screen 5).
+**Objective.** Create the store_members table with preset roles and permissions[]; the can(principal, permission, {storeId}) function in packages/core is the sole permission-checking point; audit_log records actor_user_id, actor_kind for every permission change and sensitive action. Stores & members screen (screen 5).
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/access/permissions.ts`
 - `packages/core/src/access/can.ts`
@@ -158,41 +158,41 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `apps/web/src/features/stores/member-table.tsx`
 - `apps/web/src/features/stores/invite-dialog.tsx`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/access/can.test.ts`
-  - Ma trận preset x permission khớp ADR 0002 (test theo bảng)
-  - Admin hệ thống không có product.push hay product.publish ở store chưa được cấp
-  - seller_support mặc định không có product.publish
-  - Quyền của store A không dùng được ở store B
+  - The preset x permission matrix matches ADR 0002 (table-driven tests)
+  - System admins do not have product.push or product.publish in stores where those permissions have not been granted
+  - seller_support does not have product.publish by default
+  - Permissions for store A cannot be used in store B
 - `packages/core/test/access/members.test.ts`
-  - Chỉ owner cấp được product.publish
-  - Không ai cấp được quyền mình không có
-  - Không xoá hay hạ quyền owner cuối cùng
-  - Mỗi store đúng 1 owner (ràng buộc DB, 2 transaction đua nhau)
-  - Chuyển owner chỉ owner hoặc admin làm được, ghi audit_log
+  - Only the owner can grant product.publish
+  - No one can grant permissions they do not have
+  - The last owner cannot be removed or demoted
+  - Each store has exactly 1 owner (DB constraint, 2 racing transactions)
+  - Only the owner or an admin can transfer ownership, with an audit_log record
 - `tests/e2e/stores-members.spec.ts`
-  - Owner bật publish cho co_leader, co_leader thấy nút Public; tắt đi thì nút biến mất
-  - Trạng thái quyền hiển thị bằng chữ và icon, không chỉ bằng màu
+  - The owner enables publish for co_leader, and co_leader sees the Public button; disabling it makes the button disappear
+  - Permission status is displayed with text and icons, not just color
 
-**Điều kiện xong**
+**Done criteria**
 
-- Mọi server action có store đều đi qua can()
-- Ma trận quyền có test theo bảng
-- Thay đổi quyền nào cũng có dòng audit_log
+- Every server action involving a store goes through can()
+- The permission matrix has table-driven tests
+- Every permission change has an audit_log row
 
 ---
 
-## P1-05 Object storage, assets và thư viện design theo store
+## P1-05 Object storage, assets and per-store design library
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-04
-- **Màn prototype:** 1
-- **Tham chiếu PRD:** §13
+- **Dependencies:** P1-04
+- **Prototype screen:** 1
+- **PRD reference:** §13
 
-**Mục tiêu.** Upload trực tiếp lên S3 bằng presigned PUT, kiểm sha256, dedupe theo (store_id, sha256), đọc ảnh qua presigned GET ngắn hạn. Design mặc định thuộc phạm vi store cho tới khi chốt policy dùng chung.
+**Objective.** Upload directly to S3 using presigned PUT, verify sha256, deduplicate by (store_id, sha256), and read images through short-lived presigned GET. Designs are store-scoped by default until a shared-use policy is finalized.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/core/src/assets/storage.ts`
 - `packages/core/src/assets/assets.ts`
@@ -201,34 +201,34 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `packages/db/src/schema/designs.ts`
 - `apps/web/src/features/designs/upload-queue.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/assets/assets.test.ts`
-  - Upload file có sha256 khai báo sai: finalize bị từ chối, object bị xoá
-  - Cùng file upload 2 lần trong 1 store: 1 asset
-  - Người của store B không lấy được presigned URL ảnh store A
-  - Presigned URL hết hạn đúng thời gian cấu hình
+  - Upload a file with an incorrect declared sha256: finalization is rejected and the object is deleted
+  - Upload the same file 2 times in 1 store: 1 asset
+  - A member of store B cannot obtain a presigned URL for an image in store A
+  - Presigned URLs expire at the configured time
 - `packages/core/test/designs/scope.test.ts`
-  - Design mặc định chỉ hiện trong store đã upload
-  - Chia sẻ design sang store khác là thao tác có quyền và có audit_log
+  - By default, a design is only visible in the store where it was uploaded
+  - Sharing a design with another store requires permission and an audit_log record
 
-**Điều kiện xong**
+**Done criteria**
 
-- Không có đường đọc file nào bỏ qua kiểm quyền store
-- Dedupe và checksum có test
+- No file read path bypasses store permission checks
+- Deduplication and checksums have tests
 
 ---
 
-## P1-06 Bảng lease job AI, scheduler công bằng và reaper
+## P1-06 AI job lease table, fair scheduler and reaper
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-05
-- **Màn prototype:** 1
-- **Tham chiếu PRD:** §5.1, §8.5
+- **Dependencies:** P1-05
+- **Prototype screen:** 1
+- **PRD reference:** §5.1, §8.5
 
-**Mục tiêu.** Bảng generation_jobs với lease_token, lease_expires_at, attempt, error_class, priority; claim bằng FOR UPDATE SKIP LOCKED theo thứ tự tier, xoay vòng store, xoay vòng người yêu cầu, tuổi job; reaper trả job hết lease về hàng đợi; bảng provider_accounts và workers.
+**Objective.** Create the generation_jobs table with lease_token, lease_expires_at, attempt, error_class, priority; claim using FOR UPDATE SKIP LOCKED in order of tier, round-robin across stores, round-robin across requesters, and job age; the reaper returns jobs with expired leases to the queue; create the provider_accounts and workers tables.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `packages/db/src/schema/generation-jobs.ts`
 - `packages/db/src/schema/provider-accounts.ts`
@@ -238,39 +238,39 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `packages/core/src/generation/error-classes.ts`
 - `apps/jobs/src/reapers/lease-reaper.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/generation/claim.test.ts`
-  - 50 claim song song trên 20 job: không job nào bị claim 2 lần
-  - Store A có 200 job, store B có 2 job: job của B được claim trong 2 lượt đầu
-  - Account thiếu provider skill bắt buộc không nhận job cần skill đó
-  - Account đang cooldown hoặc hết phiên không claim được
+  - 50 parallel claims on 20 jobs: no job is claimed 2 times
+  - Store A has 200 jobs and store B has 2 jobs: B's jobs are claimed within the first 2 turns
+  - An account missing a required provider skill does not receive jobs that require that skill
+  - An account in cooldown or with an expired session cannot claim jobs
 - `packages/core/test/generation/transitions.test.ts`
-  - Bảng error class: mỗi class ra đúng trạng thái job, account và có tính attempt hay không
-  - Transition dùng UPDATE có guard status + lease_token; 2 update đua nhau chỉ 1 thắng
-  - Huỷ thắng hoàn thành: cancel ghi trước thì complete trả job_not_active
+  - Error class table: each class produces the correct job and account states and determines whether an attempt is counted
+  - Transitions use UPDATE guarded by status + lease_token; 2 racing updates yield only 1 winner
+  - Cancellation wins over completion: if cancel is recorded first, complete returns job_not_active
 - `apps/jobs/test/lease-reaper.test.ts`
-  - Job hết lease không complete/fail: về queued, tính 1 attempt transient
-  - Vượt maxAttempts: failed; bị trả về quá N lần vì lỗi account: failed với lý do không có account khoẻ
+  - A job with an expired lease and no complete/fail: returns to queued, counting 1 transient attempt
+  - Exceeding maxAttempts: failed; returned to the queue more than N times due to account errors: failed with the reason that no healthy account is available
 
-**Điều kiện xong**
+**Done criteria**
 
-- Không double claim dưới tải song song có test
-- Fairness theo store có test
-- Mọi transition là UPDATE có guard
+- Tests verify no double claims under parallel load
+- Store-level fairness has tests
+- Every transition is a guarded UPDATE
 
 ---
 
-## P1-07 Worker API v2 routes và token worker
+## P1-07 Worker API v2 routes and worker tokens
 
-- **Owner:** webapp + ngatruong123
-- **Phụ thuộc:** P1-06
-- **Màn prototype:** không
-- **Tham chiếu PRD:** §8.5
+- **Owner:** webapp + worker team (ngatruong123)
+- **Dependencies:** P1-06
+- **Prototype screen:** none
+- **PRD reference:** §8.5
 
-**Mục tiêu.** Hiện thực đúng packages/contracts (OpenAPI 3.1, X-Contract-Version: 2) dưới /api/worker/v2: register, claim long-poll, heartbeat, uploads, complete, fail, account status, skill version. Token riêng từng worker, lưu hash. ngatruong123 duyệt contract trước khi bắt đầu.
+**Objective.** Implement packages/contracts exactly (OpenAPI 3.1, X-Contract-Version: 2) under /api/worker/v2: register, claim long-poll, heartbeat, uploads, complete, fail, account status, skill version. Each worker has its own token, stored as a hash. The worker team (ngatruong123) approves the contract before work begins.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/app/api/worker/v2/register/route.ts`
 - `apps/web/src/app/api/worker/v2/claim/route.ts`
@@ -284,67 +284,67 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `packages/core/src/workers/idempotency.ts`
 - `packages/contracts/`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tests/contract/worker-api.test.ts`
-  - Mọi response khớp schema OpenAPI (validate bằng Ajv từ packages/contracts)
-  - Lease cũ: 409 lease_lost
-  - Complete lặp lại cùng Idempotency-Key: trả kết quả lần đầu, không tạo kết quả trùng
-  - Cùng key khác body: 422 idempotency_key_reused
-  - uploadKey thiếu hoặc sha256 lệch: 422
-  - Thiếu hoặc sai X-Contract-Version: 426
-  - Token đã thu hồi: 401
+  - Every response matches the OpenAPI schema (validate with Ajv from packages/contracts)
+  - A stale lease: 409 lease_lost
+  - Repeated complete with the same Idempotency-Key: returns the first result without creating duplicate results
+  - The same key with a different body: 422 idempotency_key_reused
+  - Missing uploadKey or mismatched sha256: 422
+  - Missing or incorrect X-Contract-Version: 426
+  - A revoked token: 401
 - `tests/contract/cancel-race.test.ts`
-  - Cancel và complete gửi đồng thời 100 lần: job luôn kết thúc ở đúng 1 trạng thái, file upload của nhánh thua được dọn
+  - Cancel and complete are sent concurrently 100 times: the job always ends in exactly 1 state, and uploaded files from the losing branch are cleaned up
 
-**Điều kiện xong**
+**Done criteria**
 
-- Contract test xanh trên toàn bộ ví dụ trong packages/contracts/examples
-- ngatruong123 xác nhận contract bằng văn bản (comment/issue)
+- Contract tests pass for all examples in packages/contracts/examples
+- The worker team (ngatruong123) confirms the contract in writing (comment/issue)
 
 ---
 
-## P1-08 tools/fake-worker theo contract
+## P1-08 tools/fake-worker per the contract
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-07
-- **Màn prototype:** không
-- **Tham chiếu PRD:** không (yêu cầu mới từ ADR/contract)
+- **Dependencies:** P1-07
+- **Prototype screen:** none
+- **PRD reference:** none (new requirement from ADR/contract)
 
-**Mục tiêu.** Worker giả bằng Node chỉ nói chuyện qua Worker API v2 và presigned URL, có kịch bản: thành công, chậm có heartbeat, rate limit, hết phiên, crash giữa chừng, trả ảnh sai checksum. Dùng cho dev, E2E và đo tải.
+**Objective.** A fake Node worker communicates only through Worker API v2 and presigned URLs, with scenarios for success, slow execution with heartbeat, rate limits, session expiry, a mid-run crash, and returning images with incorrect checksums. Used for development, E2E, and load measurement.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `tools/fake-worker/src/index.ts`
 - `tools/fake-worker/src/scenarios.ts`
 - `tools/fake-worker/assets/`
 - `tools/fake-worker/README.md`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tools/fake-worker/test/scenarios.test.ts`
-  - Kịch bản success: job về succeeded, có đủ ảnh
-  - Kịch bản rate_limited: account vào cooldown, job về queued, attempt không tăng
-  - Kịch bản crash: reaper trả job về hàng đợi sau lease
-  - Worker từ chối URL ngoài storageOrigins
+  - success scenario: the job reaches succeeded with all images present
+  - rate_limited scenario: the account enters cooldown, the job returns to queued, and attempt does not increase
+  - crash scenario: the reaper returns the job to the queue after the lease expires
+  - The worker rejects URLs outside storageOrigins
 
-**Điều kiện xong**
+**Done criteria**
 
-- Chạy được bằng 1 lệnh, cấu hình kịch bản bằng tham số
-- Không import code nội bộ của apps/web (chỉ dùng contracts)
+- Runs with 1 command, with the scenario configured through parameters
+- Does not import internal apps/web code (uses only contracts)
 
 ---
 
-## P1-09 Màn Studio: thư viện design, upload, tạo job, hàng đợi
+## P1-09 Studio screen: design library, upload, job creation, queue
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-08
-- **Màn prototype:** 1
-- **Tham chiếu PRD:** §11.3
+- **Dependencies:** P1-08
+- **Prototype screen:** 1
+- **PRD reference:** §11.3
 
-**Mục tiêu.** Screen 1 theo prototype: lưới design ảo hoá, lọc và tìm kiếm qua URL (nuqs), upload hàng loạt cả thư mục, drawer tạo mockup/redesign chọn skill và số lượng, drawer hàng đợi có vị trí, trạng thái, huỷ, chạy lại.
+**Objective.** Screen 1 from the prototype: a virtualized design grid, filtering and search through the URL (nuqs), bulk upload including entire folders, a mockup/redesign creation drawer with skill and quantity selection, and a queue drawer with position, status, cancellation, and rerun.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/app/(app)/studio/page.tsx`
 - `apps/web/src/features/studio/design-grid.tsx`
@@ -353,34 +353,34 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `apps/web/src/features/studio/queue-drawer.tsx`
 - `apps/web/src/features/studio/actions.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `tests/e2e/studio.spec.ts`
-  - Upload 20 file, 1 file trùng: 19 design mới, báo trùng rõ ràng
-  - Tạo job mockup 10 ảnh: job hiện trong hàng đợi với vị trí
-  - Huỷ job đang chạy: trạng thái chuyển Đã huỷ
-  - Lọc và tìm kiếm giữ nguyên sau reload (URL state)
+  - Upload 20 files with 1 duplicate: 19 new designs, with a clear duplicate notification
+  - Create a mockup job for 10 images: the job appears in the queue with its position
+  - Cancel a running job: its status changes to Cancelled
+  - Filters and search persist after reload (URL state)
 - `tests/e2e/studio-a11y.spec.ts`
-  - axe không có lỗi nghiêm trọng
-  - Drawer bẫy focus, Esc đóng và trả focus về nút mở
+  - axe reports no serious violations
+  - The drawer traps focus; Esc closes it and returns focus to the opening button
 
-**Điều kiện xong**
+**Done criteria**
 
-- Luồng upload -> tạo job -> thấy trong hàng đợi chạy được với fake-worker
-- Lưới 1.000 design cuộn mượt (virtual list)
+- The upload -> create job -> see it in the queue flow works with fake-worker
+- A grid of 1,000 designs scrolls smoothly (virtual list)
 
 ---
 
-## P1-10 Màn Duyệt ảnh
+## P1-10 Image review screen
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-09
-- **Màn prototype:** 2
-- **Tham chiếu PRD:** §5.1, §11.3
+- **Dependencies:** P1-09
+- **Prototype screen:** 2
+- **PRD reference:** §5.1, §11.3
 
-**Mục tiêu.** Screen 2: design gốc đặt cạnh kết quả, phím tắt A duyệt, R loại (bắt buộc lý do), mũi tên chuyển ảnh, duyệt hàng loạt; lý do loại được lưu để đo chất lượng skill.
+**Objective.** Screen 2: the original design is placed beside the results, with keyboard shortcuts A to approve, R to reject (reason required), arrow keys to switch images, and bulk approval; rejection reasons are stored to measure skill quality.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/app/(app)/review/page.tsx`
 - `apps/web/src/features/review/review-stage.tsx`
@@ -388,34 +388,34 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `apps/web/src/features/review/reject-dialog.tsx`
 - `packages/core/src/generation/review.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/generation/review.test.ts`
-  - Người không có quyền ở store của design không duyệt được
-  - Loại mà không có lý do: bị từ chối
+  - A user without permission in the design's store cannot approve it
+  - Rejection without a reason: rejected
 - `tests/e2e/review.spec.ts`
-  - A duyệt, R mở hộp lý do, mũi tên chuyển ảnh
-  - Phím tắt không kích hoạt khi đang gõ trong ô nhập
-  - Trạng thái duyệt hiển thị bằng chữ + icon, không chỉ bằng màu
-  - Không tràn ngang ở 390px
+  - A approves, R opens the reason dialog, and arrow keys switch images
+  - Keyboard shortcuts do not activate while typing in an input
+  - Review status is displayed with text + icons, not just color
+  - No horizontal overflow at 390px
 
-**Điều kiện xong**
+**Done criteria**
 
-- Duyệt 50 ảnh chỉ bằng bàn phím được
-- Lý do loại lưu kèm skill_version_id của job
+- 50 images can be approved using only the keyboard
+- Rejection reasons are stored with the job's skill_version_id
 
 ---
 
-## P1-11 Trạng thái realtime (SSE) và ghi usage_events
+## P1-11 Realtime status (SSE) and usage_events recording
 
 - **Owner:** webapp
-- **Phụ thuộc:** P1-07, P1-08, P1-09
-- **Màn prototype:** 1
-- **Tham chiếu PRD:** §14
+- **Dependencies:** P1-07, P1-08, P1-09
+- **Prototype screen:** 1
+- **PRD reference:** §14
 
-**Mục tiêu.** SSE cấp theo store, nguồn là Postgres LISTEN/NOTIFY sau commit; mỗi job kết thúc ghi usage_events (job_id, job_type, provider, account_id, requester_id, store_id, store_owner_id_at_time, units). Không có giới hạn hay quota.
+**Objective.** SSE is scoped per store, sourced from Postgres LISTEN/NOTIFY after commit; every finished job records usage_events (job_id, job_type, provider, account_id, requester_id, store_id, store_owner_id_at_time, units). There are no limits or quotas.
 
-**Đường dẫn đề xuất**
+**Proposed paths**
 
 - `apps/web/src/app/api/events/route.ts`
 - `packages/core/src/events/notify.ts`
@@ -423,16 +423,16 @@ Mục tiêu: chạy trọn thin slice mời người dùng -> upload -> tạo jo
 - `packages/db/src/schema/usage-events.ts`
 - `apps/web/src/features/realtime/use-store-events.ts`
 
-**Test dự kiến** (PLANNED - not implemented, not executed)
+**Planned tests** (PLANNED - not implemented, not executed)
 
 - `packages/core/test/usage/record.test.ts`
-  - Job succeeded ghi đúng 1 usage_event, lặp complete không ghi thêm
-  - Owner đổi sau đó thì usage cũ vẫn giữ store_owner_id_at_time ban đầu
+  - A succeeded job records exactly 1 usage_event; repeated complete does not record additional events
+  - If the owner changes later, earlier usage still retains the original store_owner_id_at_time
 - `tests/integration/sse.test.ts`
-  - Client store A không nhận event của store B
-  - Event chỉ bắn sau commit, rollback thì không bắn
+  - A client for store A does not receive events from store B
+  - Events are emitted only after commit; rollback emits none
 
-**Điều kiện xong**
+**Done criteria**
 
-- Hàng đợi cập nhật không cần poll
-- Có truy vấn tổng hợp usage theo store và theo owner (chỉ đọc)
+- The queue updates without polling
+- Read-only queries aggregate usage by store and by owner
