@@ -11,6 +11,7 @@ const baseURL = `http://127.0.0.1:${port}`;
  */
 process.env.POD_E2E_DATABASE ??= `pod_e2e_${randomBytes(4).toString('hex')}_test`;
 process.env.POD_E2E_AUTH_SECRET ??= randomBytes(32).toString('base64url');
+process.env.POD_E2E_BUCKET ??= `pod-e2e-${randomBytes(4).toString('hex')}-test`;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -38,6 +39,12 @@ export default defineConfig({
       PGUSER: process.env.TEST_PGUSER ?? 'pod',
       PGPASSWORD: process.env.TEST_PGPASSWORD ?? 'pod-local-only',
       PGDATABASE: process.env.POD_E2E_DATABASE,
+      S3_ENDPOINT: process.env.TEST_S3_ENDPOINT ?? 'http://127.0.0.1:19000',
+      S3_PUBLIC_ENDPOINT: '',
+      S3_REGION: process.env.TEST_S3_REGION ?? 'us-east-1',
+      S3_ACCESS_KEY_ID: process.env.TEST_S3_ACCESS_KEY_ID ?? 'podlocal',
+      S3_SECRET_ACCESS_KEY: process.env.TEST_S3_SECRET_ACCESS_KEY ?? 'pod-local-only',
+      S3_BUCKET: process.env.POD_E2E_BUCKET,
       BETTER_AUTH_SECRET: process.env.POD_E2E_AUTH_SECRET,
       BETTER_AUTH_URL: baseURL,
       BETTER_AUTH_TRUSTED_ORIGINS: baseURL,

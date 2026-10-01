@@ -1,5 +1,6 @@
 import { and, eq, storeMembers, type Database, type GlobalRole } from '@pod-studio/db';
 import type { Executor } from '../audit/log';
+import { AuthError } from '../auth/errors';
 import {
   ADMIN_STORE_PERMISSIONS,
   isStorePermission,
@@ -62,4 +63,9 @@ export async function can(
   if (!principal?.userId || !isStorePermission(permission) || !scope?.storeId) return false;
   const membership = await findMembership(db, principal.userId, scope.storeId);
   return effectivePermissions(principal, membership).includes(permission);
+}
+
+/** Throw the same denial for all store-scoped service operations. */
+export async function assertCan(db: Executor, principal: Principal, permission: StorePermission, storeId: string): Promise<void> {
+  if (!(await can(db, principal, permission, { storeId }))) throw new AuthError('FORBIDDEN');
 }

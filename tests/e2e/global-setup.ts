@@ -7,6 +7,7 @@ import { createDatabase } from '../../packages/db/src';
 import { changePassword } from '../../packages/core/src/auth';
 import { assertTestEnvironment } from '../support/environment';
 import { serverSettings } from '../support/db';
+import { createTestBucket, storageSettings } from '../support/storage';
 import { assertSafeDatabase } from '../support/guard';
 import { e2eConnection, migrate, seedAdmin } from './fixtures';
 
@@ -33,6 +34,7 @@ export default async function globalSetup(config: FullConfig) {
     await root.end({ timeout: 5 });
   }
   await migrate(database);
+  const bucket = await createTestBucket(storageSettings(), process.env.POD_E2E_BUCKET);
 
   const admin = await seedAdmin(database);
   const password = `e2e-admin-${Date.now()}-password`;
@@ -66,6 +68,7 @@ export default async function globalSetup(config: FullConfig) {
   process.env.POD_E2E_ADMIN_STATE = statePath;
 
   return async () => {
+    await bucket.drop();
     rmSync(stateDir, { recursive: true, force: true });
     const cleanup = maintenance();
     try {
