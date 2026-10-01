@@ -5,7 +5,7 @@ import { createdAt, id, updatedAt } from './columns';
 /**
  * A Shopify store (PRD §4.1). Credentials (`client_id`, encrypted `client_secret`, access token)
  * arrive with P2-05 in their own table, so a store can exist before it is connected. Membership and
- * ownership arrive with P1-04 (`store_members`).
+ * ownership live in `store_members`.
  */
 export const stores = pgTable(
   'stores',

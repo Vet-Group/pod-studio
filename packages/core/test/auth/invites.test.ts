@@ -13,7 +13,7 @@ import {
   type StoreAccess,
   type StoreGrant,
   type StoreMembership,
-} from '../../src/auth';
+} from '../../src';
 
 const cleanup: Array<() => Promise<void>> = [];
 

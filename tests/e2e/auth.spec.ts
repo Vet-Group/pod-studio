@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import type { Principal } from '../../packages/core/src/auth';
+import type { Principal } from '../../packages/core/src';
 import { seedInvite, seedTemporaryAccount, withDatabase } from './fixtures';
 import { eq, sessions } from '../../packages/db/src';
 
