@@ -3,18 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { findScreen, screens } from './screens';
+import { HOME_SCREEN, findScreen, screens } from './screens';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const repo = (p: string) => resolve(root, p);
 
 describe('screens', () => {
-  it('matches the wireframe navigation labels and order', () => {
+  it('matches the wireframe navigation slugs, labels and order', () => {
     const html = readFileSync(repo('design/wireframes/index.html'), 'utf8');
     const navs = /const navs=(\[.*?\]);/s.exec(html)?.[1];
     expect(navs).toBeDefined();
     const wire = JSON.parse(navs!.replaceAll("'", '"')) as [string, string][];
-    expect(screens.map((s) => [s.wireframe, s.label])).toEqual(wire);
+    expect(screens.map((s) => [s.slug, s.label])).toEqual(wire);
   });
 
   it('points every screen at a real task in tasks/tasks.json', () => {
@@ -24,7 +24,11 @@ describe('screens', () => {
   });
 
   it('finds screens by slug', () => {
-    expect(findScreen('duyet')?.label).toBe('Duyệt thiết kế');
-    expect(findScreen('khong-co')).toBeUndefined();
+    expect(findScreen('review')?.label).toBe('Design review');
+    expect(findScreen('does-not-exist')).toBeUndefined();
+  });
+
+  it('lands on the design library', () => {
+    expect(HOME_SCREEN.slug).toBe('studio');
   });
 });

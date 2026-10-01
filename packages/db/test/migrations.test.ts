@@ -144,11 +144,11 @@ describe('tables', () => {
     expect(user?.role).toBe('member');
     expect(user?.createdAt).toBeInstanceOf(Date);
 
-    const [store] = await h.db.insert(stores).values({ name: 'Mộc Mây', domain: 'mocmay.myshopify.com' }).returning();
+    const [store] = await h.db.insert(stores).values({ name: 'Cloud Grove', domain: 'cloudgrove.myshopify.com' }).returning();
     expect(store?.apiVersion).toBe('2026-07');
 
     await new Promise((r) => setTimeout(r, 20));
-    const [renamed] = await h.db.update(stores).set({ name: 'Mộc Mây Studio' }).where(eq(stores.id, store!.id)).returning();
+    const [renamed] = await h.db.update(stores).set({ name: 'Cloud Grove Studio' }).where(eq(stores.id, store!.id)).returning();
     expect(renamed!.updatedAt.getTime()).toBeGreaterThan(store!.updatedAt.getTime());
     expect(renamed!.createdAt.getTime()).toBe(store!.createdAt.getTime());
   });
@@ -205,7 +205,7 @@ describe('audit_log', () => {
     const h = createDatabase(d.connection, { max: 2 });
     cleanup.push(() => h.close());
     const [user] = await h.db.insert(users).values({ name: 'Lan', email: 'lan@example.test' }).returning();
-    const [store] = await h.db.insert(stores).values({ name: 'Mộc Mây', domain: 'mocmay.myshopify.com' }).returning();
+    const [store] = await h.db.insert(stores).values({ name: 'Cloud Grove', domain: 'cloudgrove.myshopify.com' }).returning();
     const [entry] = await h.db
       .insert(auditLog)
       .values({

@@ -63,7 +63,7 @@ export interface ChangePasswordInput {
 export async function changePassword(db: Database, input: ChangePasswordInput): Promise<void> {
   assertPassword(input.newPassword);
   if (input.newPassword === input.currentPassword) {
-    throw new AuthError('INVALID_INPUT', 'Mật khẩu mới phải khác mật khẩu hiện tại.');
+    throw new AuthError('INVALID_INPUT', 'The new password must differ from the current one.');
   }
 
   const [account] = await db
@@ -74,7 +74,7 @@ export async function changePassword(db: Database, input: ChangePasswordInput): 
     !!account?.password &&
     typeof input.currentPassword === 'string' &&
     (await verifyPassword({ hash: account.password, password: input.currentPassword }));
-  if (!valid) throw new AuthError('INVALID_INPUT', 'Mật khẩu hiện tại không đúng.');
+  if (!valid) throw new AuthError('INVALID_INPUT', 'The current password is incorrect.');
 
   const passwordHash = await hashPassword(input.newPassword);
   await db.transaction(async (tx) => {

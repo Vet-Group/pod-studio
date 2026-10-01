@@ -1,20 +1,23 @@
 /**
- * Primary navigation. Labels, order and icons match `navs`/`icons` in design/wireframes/index.html.
- * `task` is the tasks/tasks.json entry that builds the real screen; until then the route renders a
- * placeholder.
+ * Primary navigation. Slugs, labels and order match `navs` in design/wireframes/index.html, and
+ * icons match its `icons`. `task` is the tasks/tasks.json entry that builds the real screen; until
+ * then the route renders a placeholder.
  */
 export const screens = [
-  { slug: 'thiet-ke', label: 'Thư viện thiết kế', task: 'P1-09', wireframe: 'studio' },
-  { slug: 'duyet', label: 'Duyệt thiết kế', task: 'P1-10', wireframe: 'review' },
-  { slug: 'noi-dung', label: 'Nội dung listing', task: 'P2-02', wireframe: 'listing' },
-  { slug: 'san-pham', label: 'Sản phẩm & đẩy', task: 'P2-04', wireframe: 'products' },
-  { slug: 'cua-hang', label: 'Cửa hàng & thành viên', task: 'P1-04', wireframe: 'team' },
-  { slug: 'ky-nang', label: 'Kỹ năng & vận hành', task: 'P3-04', wireframe: 'skills' },
-  { slug: 'ngach', label: 'Dữ liệu ngách', task: 'P3-09', wireframe: 'niche' },
+  { slug: 'studio', label: 'Design library', task: 'P1-09' },
+  { slug: 'review', label: 'Design review', task: 'P1-10' },
+  { slug: 'listing', label: 'Listing content', task: 'P2-02' },
+  { slug: 'products', label: 'Products & push', task: 'P2-04' },
+  { slug: 'team', label: 'Stores & members', task: 'P1-04' },
+  { slug: 'skills', label: 'Skills & operations', task: 'P3-04' },
+  { slug: 'niche', label: 'Niche data', task: 'P3-09' },
 ] as const;
 
 export type Screen = (typeof screens)[number];
 export type ScreenSlug = Screen['slug'];
+
+/** Landing screen for `/` and for links back into the app. */
+export const HOME_SCREEN: Screen = screens[0];
 
 export function findScreen(slug: string): Screen | undefined {
   return screens.find((s) => s.slug === slug);

@@ -66,19 +66,19 @@ export type InviteStatus = 'valid' | 'not_found' | 'expired' | 'used' | 'revoked
 const clock = (deps: InviteDeps) => (deps.now ?? (() => new Date()))();
 
 async function assertCanGrantStore(deps: InviteDeps, actor: Principal, store: NonNullable<CreateInviteInput['store']>) {
-  if (!deps.storeAccess) throw new AuthError('NOT_SUPPORTED', 'Mời vào store sẽ có khi phân quyền store được mở.');
+  if (!deps.storeAccess) throw new AuthError('NOT_SUPPORTED', 'Store invites become available once store permissions ship.');
   if (!isStoreRole(store.role) || !store.permissions.every(isStorePermission)) throw new AuthError('INVALID_INPUT');
   // There is exactly one owner per store; ownership moves through the transfer flow, never an invite.
-  if (store.role === 'owner') throw new AuthError('FORBIDDEN', 'Không thể mời thêm owner; hãy dùng chuyển owner.');
+  if (store.role === 'owner') throw new AuthError('FORBIDDEN', 'An invite cannot grant ownership; transfer ownership instead.');
 
   const membership = await deps.storeAccess.membership(actor.userId, store.storeId);
   if (store.permissions.includes('product.publish') && membership?.role !== 'owner') {
-    throw new AuthError('FORBIDDEN', 'Chỉ owner mới cấp được quyền đăng bán.');
+    throw new AuthError('FORBIDDEN', 'Only the store owner can grant the publish permission.');
   }
   if (actor.role === 'admin') return;
   if (!membership?.permissions.includes('store.members')) throw new AuthError('FORBIDDEN');
   if (!store.permissions.every((p) => membership.permissions.includes(p))) {
-    throw new AuthError('FORBIDDEN', 'Không thể cấp quyền bạn không có.');
+    throw new AuthError('FORBIDDEN', 'You cannot grant a permission you do not have.');
   }
 }
 
@@ -102,7 +102,7 @@ export async function createInvite(deps: InviteDeps, actor: Principal, input: Cr
   }
 
   const [self] = await deps.db.select({ email: users.email }).from(users).where(eq(users.id, actor.userId));
-  if (!self || self.email === email) throw new AuthError('FORBIDDEN', 'Không thể tự mời chính mình.');
+  if (!self || self.email === email) throw new AuthError('FORBIDDEN', 'You cannot invite yourself.');
 
   const existing = await deps.db.$count(users, eq(users.email, email));
   // Existing accounts join a store by signing in and accepting; that flow ships with store memberships.

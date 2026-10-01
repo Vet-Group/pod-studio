@@ -1,18 +1,18 @@
 export const AUTH_ERROR_MESSAGES = {
-  INVALID_INPUT: 'Thông tin chưa hợp lệ.',
-  WEAK_PASSWORD: 'Mật khẩu cần từ 10 đến 128 ký tự.',
-  FORBIDDEN: 'Bạn không có quyền làm việc này.',
-  NOT_SUPPORTED: 'Chức năng này chưa được mở.',
-  ACCOUNT_EXISTS: 'Email này đã có tài khoản.',
-  INVITE_NOT_FOUND: 'Link mời không tồn tại.',
-  INVITE_EXPIRED: 'Link mời đã hết hạn.',
-  INVITE_USED: 'Link mời đã được dùng.',
-  INVITE_REVOKED: 'Link mời đã bị thu hồi.',
+  INVALID_INPUT: 'The submitted details are invalid.',
+  WEAK_PASSWORD: 'Password must be 10 to 128 characters.',
+  FORBIDDEN: 'You do not have permission to do this.',
+  NOT_SUPPORTED: 'This feature is not available yet.',
+  ACCOUNT_EXISTS: 'An account with this email already exists.',
+  INVITE_NOT_FOUND: 'This invite link does not exist.',
+  INVITE_EXPIRED: 'This invite link has expired.',
+  INVITE_USED: 'This invite link has already been used.',
+  INVITE_REVOKED: 'This invite link has been revoked.',
 } as const;
 
 export type AuthErrorCode = keyof typeof AUTH_ERROR_MESSAGES;
 
-/** Expected, user-facing failure of an auth operation. `message` is Vietnamese and safe to show. */
+/** Expected, user-facing failure of an auth operation. `message` is safe to show to the user. */
 export class AuthError extends Error {
   override readonly name = 'AuthError';
 

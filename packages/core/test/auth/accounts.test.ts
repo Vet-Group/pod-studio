@@ -37,7 +37,7 @@ describe('temporary passwords', () => {
       createUserWithTemporaryPassword(db, { userId: admin.userId, role: 'member' }, { email: 'x@example.test', name: 'X' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
-    const created = await createUserWithTemporaryPassword(db, admin, { email: ' Staff@Example.test ', name: 'Nhân viên' });
+    const created = await createUserWithTemporaryPassword(db, admin, { email: ' Staff@Example.test ', name: 'Staff Member' });
     expect(created.email).toBe('staff@example.test');
     expect(created.temporaryPassword.length).toBeGreaterThanOrEqual(16);
 
@@ -67,10 +67,10 @@ describe('changePassword', () => {
     await addSession(db, userId, 'sess_current_1');
     await addSession(db, userId, 'sess_other_001');
 
-    await changePassword(db, { userId, currentPassword: temporaryPassword, newPassword: 'mat-khau-moi-123', keepSessionId: 'sess_current_1' });
+    await changePassword(db, { userId, currentPassword: temporaryPassword, newPassword: 'new-password-123', keepSessionId: 'sess_current_1' });
 
     const hash = await storedHash(db, userId);
-    expect(await verifyPassword({ hash, password: 'mat-khau-moi-123' })).toBe(true);
+    expect(await verifyPassword({ hash, password: 'new-password-123' })).toBe(true);
     expect(await verifyPassword({ hash, password: temporaryPassword })).toBe(false);
     const [user] = await db.select({ must: users.mustChangePassword }).from(users).where(eq(users.id, userId));
     expect(user?.must).toBe(false);
@@ -85,7 +85,7 @@ describe('changePassword', () => {
     const { userId, temporaryPassword } = await createUserWithTemporaryPassword(db, admin, { email: 'w@example.test', name: 'W' });
     const before = await storedHash(db, userId);
 
-    const attempt = changePassword(db, { userId, currentPassword: 'khong-dung-mat-khau', newPassword: 'mat-khau-moi-123' });
+    const attempt = changePassword(db, { userId, currentPassword: 'wrong-password-1', newPassword: 'new-password-123' });
     await expect(attempt).rejects.toBeInstanceOf(AuthError);
     await expect(attempt).rejects.toMatchObject({ code: 'INVALID_INPUT' });
     expect(await storedHash(db, userId)).toBe(before);
@@ -99,15 +99,15 @@ describe('changePassword', () => {
     await db.insert(users).values({ id: 'user_plain_01', name: 'P', email: 'p@example.test' });
     await db
       .insert(accounts)
-      .values({ id: 'acct_plain_01', accountId: 'user_plain_01', providerId: 'credential', userId: 'user_plain_01', password: await hashPassword('mat-khau-cu-12345') });
+      .values({ id: 'acct_plain_01', accountId: 'user_plain_01', providerId: 'credential', userId: 'user_plain_01', password: await hashPassword('old-password-12345') });
 
-    await expect(changePassword(db, { userId: 'user_plain_01', currentPassword: 'mat-khau-cu-12345', newPassword: 'short' })).rejects.toMatchObject({
+    await expect(changePassword(db, { userId: 'user_plain_01', currentPassword: 'old-password-12345', newPassword: 'short' })).rejects.toMatchObject({
       code: 'WEAK_PASSWORD',
     });
     await expect(
-      changePassword(db, { userId: 'user_plain_01', currentPassword: 'mat-khau-cu-12345', newPassword: 'mat-khau-cu-12345' }),
+      changePassword(db, { userId: 'user_plain_01', currentPassword: 'old-password-12345', newPassword: 'old-password-12345' }),
     ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
-    await changePassword(db, { userId: 'user_plain_01', currentPassword: 'mat-khau-cu-12345', newPassword: 'mat-khau-moi-67890' });
+    await changePassword(db, { userId: 'user_plain_01', currentPassword: 'old-password-12345', newPassword: 'new-password-67890' });
     const [entry] = await db.select().from(auditLog).where(eq(auditLog.action, 'auth.password.change'));
     expect(entry?.data).toMatchObject({ forced: false });
   });

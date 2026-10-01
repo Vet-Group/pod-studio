@@ -35,13 +35,13 @@ export function hashPassword(password: string): Promise<string> {
 export function normalizeEmail(email: unknown): string {
   const value = typeof email === 'string' ? email.trim().toLowerCase() : '';
   if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-    throw new AuthError('INVALID_INPUT', 'Email không hợp lệ.');
+    throw new AuthError('INVALID_INPUT', 'The email address is invalid.');
   }
   return value;
 }
 
 export function normalizeName(name: unknown): string {
   const value = typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : '';
-  if (!value || value.length > MAX_NAME_LENGTH) throw new AuthError('INVALID_INPUT', 'Tên cần từ 1 đến 100 ký tự.');
+  if (!value || value.length > MAX_NAME_LENGTH) throw new AuthError('INVALID_INPUT', 'Name must be 1 to 100 characters.');
   return value;
 }

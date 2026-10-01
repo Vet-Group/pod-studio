@@ -24,7 +24,7 @@ export interface AuthConfig {
 
 export const PASSWORD_CHANGE_REQUIRED = {
   code: 'PASSWORD_CHANGE_REQUIRED',
-  message: 'Bạn cần đổi mật khẩu tạm trước khi tiếp tục.',
+  message: 'Change your temporary password to continue.',
 } as const;
 
 /**
@@ -125,7 +125,7 @@ function podStudioAccess(config: AuthConfig) {
       }),
       changePassword: createAuthEndpoint('/password/change', { method: 'POST', requireHeaders: true }, async (ctx) => {
         const session = await getSessionFromCtx(ctx);
-        if (!session) throw new APIError('UNAUTHORIZED', { code: 'UNAUTHORIZED', message: 'Bạn cần đăng nhập lại.' });
+        if (!session) throw new APIError('UNAUTHORIZED', { code: 'UNAUTHORIZED', message: 'Please sign in again.' });
         await core(() =>
           changePassword(config.db, {
             userId: session.user.id,

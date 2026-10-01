@@ -13,7 +13,7 @@ import { screens } from '@/lib/screens';
 export function AppNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Điều hướng chính">
+    <nav aria-label="Main navigation">
       <ul className="grid gap-1.5 max-md:grid-cols-4 max-md:gap-1 max-md:pb-2.5">
         {screens.map((s) => {
           const href = `/${s.slug}` as const;

@@ -66,7 +66,7 @@ async function signIn(auth: Auth, email: string, password: string) {
 }
 
 async function temporaryAccount(db: Database, auth: Auth) {
-  const created = await createUserWithTemporaryPassword(db, admin, { email: 'staff@example.test', name: 'Nhân viên' });
+  const created = await createUserWithTemporaryPassword(db, admin, { email: 'staff@example.test', name: 'Staff Member' });
   const { cookie, body } = await signIn(auth, created.email, created.temporaryPassword);
   return { ...created, cookie, user: body.user };
 }
@@ -169,13 +169,13 @@ describe('invite acceptance and sessions', () => {
   it('creates the invited account, signs it in, and refuses a replay', async () => {
     const { db, auth } = await setup();
     const invite = await createInvite({ db }, admin, { email: 'new@example.test' });
-    const body = { token: invite.token, name: 'Người mới', password: 'invitee-password-1' };
+    const body = { token: invite.token, name: 'New Hire', password: 'invitee-password-1' };
 
     const accepted = await call(auth, '/invite/accept', { body });
     expect(accepted.status).toBe(200);
     const session = await call(auth, '/get-session', { method: 'GET', cookie: cookieOf(accepted) });
     expect(await session.json()).toMatchObject({
-      user: { email: 'new@example.test', name: 'Người mới', mustChangePassword: false, role: 'member' },
+      user: { email: 'new@example.test', name: 'New Hire', mustChangePassword: false, role: 'member' },
     });
 
     const replay = await call(auth, '/invite/accept', { body });
@@ -188,7 +188,7 @@ describe('invite acceptance and sessions', () => {
     const { db, auth } = await setup();
     const invite = await createInvite({ db }, admin, { email: 'new@example.test' });
     const accepted = await call(auth, '/invite/accept', {
-      body: { token: invite.token, name: 'Người mới', password: 'invitee-password-1' },
+      body: { token: invite.token, name: 'New Hire', password: 'invitee-password-1' },
     });
     const cookie = cookieOf(accepted);
     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, 'new@example.test'));

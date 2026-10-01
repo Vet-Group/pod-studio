@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: { default: 'POD Studio', template: '%s · POD Studio' },
-  description: 'Xưởng thiết kế và đăng sản phẩm print-on-demand.',
+  description: 'Design and listing workspace for print-on-demand products.',
 };
 
 export const viewport: Viewport = {
@@ -15,13 +15,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
+    <html lang="en">
       <body>
         <a
           href="#main"
           className="focus:bg-paper sr-only focus:not-sr-only focus:fixed focus:top-2.5 focus:left-[230px] focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:p-2.5 max-md:focus:left-4"
         >
-          Đến nội dung chính
+          Skip to main content
         </a>
         <div className="min-h-dvh md:pl-[216px]">
           {/* Geometry mirrors `.sidebar`, `.brand` and `.navlabel` in the wireframe. */}
@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 pod studio<span className="text-teal">.</span>
               </strong>
             </div>
-            <div className="text-muted px-3 pb-3 text-[11.5px] font-bold tracking-[1.2px] uppercase max-md:hidden">Bàn làm việc</div>
+            <div className="text-muted px-3 pb-3 text-[11.5px] font-bold tracking-[1.2px] uppercase max-md:hidden">Workspace</div>
             <AppNav />
           </aside>
           <main

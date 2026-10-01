@@ -28,7 +28,7 @@ describe('newId', () => {
   });
 
   it('rejects values outside the pattern', () => {
-    for (const bad of ['', 'short7c', 'x'.repeat(41), 'has space1', 'dấu-tiếng-việt', 'a/b/c/d/e', 42, null]) {
+    for (const bad of ['', 'short7c', 'x'.repeat(41), 'has space1', 'non-ascii-\u00e9-id', 'a/b/c/d/e', 42, null]) {
       expect(isId(bad)).toBe(false);
     }
   });

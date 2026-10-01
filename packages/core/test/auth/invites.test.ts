@@ -75,7 +75,7 @@ async function expectAuthError(promise: Promise<unknown>, code: string) {
   await expect(promise).rejects.toMatchObject({ code });
 }
 
-const newcomer = { name: 'Người mới', password: 'mat-khau-rat-dai-1' };
+const newcomer = { name: 'New Hire', password: 'long-enough-password-1' };
 
 describe('invite tokens', () => {
   it('stores only the SHA-256 hash of the token, never the token itself', async () => {

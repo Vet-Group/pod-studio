@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { resolveRequestAccess } from '@pod-studio/core';
+import { PASSWORD_CHANGE_REQUIRED, resolveRequestAccess } from '@pod-studio/core';
 import { getAuth } from '@/lib/auth';
 
 /**
@@ -19,7 +19,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL(access.location, request.url));
     case 'forbidden':
       return NextResponse.json(
-        { code: access.code, message: 'Bạn cần đổi mật khẩu tạm trước khi tiếp tục.' },
+        { code: access.code, message: PASSWORD_CHANGE_REQUIRED.message },
         { status: 403 },
       );
   }

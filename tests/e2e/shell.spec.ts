@@ -2,24 +2,24 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const screens = [
-  ['thiet-ke', 'Thư viện thiết kế'],
-  ['duyet', 'Duyệt thiết kế'],
-  ['noi-dung', 'Nội dung listing'],
-  ['san-pham', 'Sản phẩm & đẩy'],
-  ['cua-hang', 'Cửa hàng & thành viên'],
-  ['ky-nang', 'Kỹ năng & vận hành'],
-  ['ngach', 'Dữ liệu ngách'],
+  ['studio', 'Design library'],
+  ['review', 'Design review'],
+  ['listing', 'Listing content'],
+  ['products', 'Products & push'],
+  ['team', 'Stores & members'],
+  ['skills', 'Skills & operations'],
+  ['niche', 'Niche data'],
 ] as const;
 
 test('the root redirects to the design library', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveURL(/\/thiet-ke$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Thư viện thiết kế');
+  await expect(page).toHaveURL(/\/studio$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Design library');
 });
 
 test('every screen is reachable from the navigation and marks itself current', async ({ page }) => {
-  await page.goto('/thiet-ke');
-  const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+  await page.goto('/studio');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
   for (const [slug, label] of screens) {
     await nav.locator(`a[href="/${slug}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/${slug}$`));
@@ -29,9 +29,9 @@ test('every screen is reachable from the navigation and marks itself current', a
 });
 
 test('unknown routes show the not-found page', async ({ page }) => {
-  const res = await page.goto('/khong-ton-tai');
+  const res = await page.goto('/does-not-exist');
   expect(res?.status()).toBe(404);
-  await expect(page.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 });
 
 test('no horizontal overflow and no axe violations', async ({ page }) => {
@@ -46,8 +46,8 @@ test('no horizontal overflow and no axe violations', async ({ page }) => {
 
 test('the current navigation item keeps a readable label', async ({ page }) => {
   // Regression: a `bg-current` class once painted the item in its own text colour.
-  await page.goto('/duyet');
-  const link = page.getByRole('navigation', { name: 'Điều hướng chính' }).locator('a[aria-current="page"]');
+  await page.goto('/review');
+  const link = page.getByRole('navigation', { name: 'Main navigation' }).locator('a[aria-current="page"]');
   await expect(link).toHaveCount(1);
   const ratio = await link.evaluate((el) => {
     const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
@@ -68,8 +68,8 @@ test('the current navigation item keeps a readable label', async ({ page }) => {
 test('phones keep the navigation above the content, in page flow like the wireframe', async ({ page }, info) => {
   // Regression: a fixed bottom bar diverged from the wireframe and needed padding to avoid covering content.
   test.skip(info.project.name !== 'mobile', 'phone layout only');
-  await page.goto('/duyet');
-  const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+  await page.goto('/review');
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
   const layout = await nav.evaluate((el) => {
     const aside = el.closest('aside')!;
     const heading = document.querySelector('h1')!.getBoundingClientRect();
@@ -90,9 +90,9 @@ test('phones keep the navigation above the content, in page flow like the wirefr
 });
 
 test('the skip link moves keyboard focus to the main content', async ({ page }) => {
-  await page.goto('/duyet');
+  await page.goto('/review');
   await page.keyboard.press('Tab');
-  const skip = page.getByRole('link', { name: 'Đến nội dung chính' });
+  const skip = page.getByRole('link', { name: 'Skip to main content' });
   await expect(skip).toBeFocused();
   await expect(skip).toBeInViewport();
   await page.keyboard.press('Enter');
@@ -101,9 +101,9 @@ test('the skip link moves keyboard focus to the main content', async ({ page }) 
 
 test('navigation targets are at least 44px on phones', async ({ page }, info) => {
   test.skip(info.project.name !== 'mobile', 'phone-only floor');
-  await page.goto('/thiet-ke');
+  await page.goto('/studio');
   const sizes = await page
-    .getByRole('navigation', { name: 'Điều hướng chính' })
+    .getByRole('navigation', { name: 'Main navigation' })
     .locator('a')
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => Math.min(r.width, r.height)));
   expect(sizes).toHaveLength(screens.length);
