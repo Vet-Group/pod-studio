@@ -1,12 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+// [slug, h1]. Placeholder screens use their nav label as the title; built screens use the
+// wireframe's page title.
 const screens = [
   ['studio', 'Design library'],
   ['review', 'Design review'],
   ['listing', 'Listing content'],
   ['products', 'Products & push'],
-  ['team', 'Stores & members'],
+  ['stores', 'Manage stores and permissions.'],
   ['skills', 'Skills & operations'],
   ['niche', 'Niche data'],
 ] as const;
@@ -23,10 +25,10 @@ test('the root redirects to the design library', async ({ page }) => {
 test('every screen is reachable from the navigation and marks itself current', async ({ page }) => {
   await page.goto('/studio');
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
-  for (const [slug, label] of screens) {
+  for (const [slug, title] of screens) {
     await nav.locator(`a[href="/${slug}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/${slug}$`));
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(nav.locator(`a[href="/${slug}"]`)).toHaveAttribute('aria-current', 'page');
   }
 });

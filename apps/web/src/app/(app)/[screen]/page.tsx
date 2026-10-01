@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { findScreen, screens } from '@/lib/screens';
+import { BUILT_SCREENS, findScreen, screens } from '@/lib/screens';
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return screens.map((s) => ({ screen: s.slug }));
+  return screens.filter((s) => !BUILT_SCREENS.has(s.slug)).map((s) => ({ screen: s.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<'/[screen]'>): Promise<Metadata> {
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps<'/[screen]'>): Prom
 
 export default async function ScreenPlaceholder({ params }: PageProps<'/[screen]'>) {
   const screen = findScreen((await params).screen);
-  if (!screen) notFound();
+  if (!screen || BUILT_SCREENS.has(screen.slug)) notFound();
 
   return (
     <section aria-labelledby="screen-title">

@@ -1,7 +1,16 @@
-import { accounts, and, eq, gt, invites, isNull, newId, sql, users, type Database, type GlobalRole } from '@pod-studio/db';
-import { writeAudit, type Transaction } from '../audit/log';
+import { accounts, and, asc, eq, gt, invites, isNull, newId, sql, users, type Database, type GlobalRole } from '@pod-studio/db';
+import { effectivePermissions, findMembership, type Principal } from '../access/can';
+import { addMember, type StoreAccess } from '../access/members';
+import {
+  ADMIN_GRANTABLE,
+  ROLE_PRESETS,
+  isStorePermission,
+  isStoreRole,
+  type StorePermission,
+  type StoreRole,
+} from '../access/permissions';
+import { writeAudit } from '../audit/log';
 import { AuthError } from './errors';
-import { isStorePermission, isStoreRole, type StorePermission, type StoreRole } from './roles';
 import {
   assertPassword,
   generateInviteToken,
@@ -12,40 +21,6 @@ import {
 } from './secrets';
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * What an admin may grant in a store it holds no membership in: everyday access only. Push, publish,
- * store settings (Shopify credentials) and member management stay with the owner's chain of trust.
- */
-const ADMIN_GRANTABLE: readonly StorePermission[] = ['store.view', 'analysis.run', 'product.edit', 'content.generate'];
-
-/** The signed-in user performing an action. */
-export interface Principal {
-  userId: string;
-  role: GlobalRole;
-}
-
-export interface StoreMembership {
-  role: StoreRole;
-  permissions: readonly StorePermission[];
-}
-
-export interface StoreGrant {
-  storeId: string;
-  userId: string;
-  role: StoreRole;
-  permissions: StorePermission[];
-}
-
-/**
- * Store membership lookups and writes. store_members arrives in P1-04; until then no implementation
- * exists and invites cannot carry store access (they fail with NOT_SUPPORTED instead of silently
- * dropping the grant).
- */
-export interface StoreAccess {
-  membership(userId: string, storeId: string): Promise<StoreMembership | null>;
-  grant(tx: Transaction, grant: StoreGrant): Promise<void>;
-}
 
 export interface InviteDeps {
   db: Database;
@@ -72,7 +47,7 @@ export type InviteStatus = 'valid' | 'not_found' | 'expired' | 'used' | 'revoked
 const clock = (deps: InviteDeps) => (deps.now ?? (() => new Date()))();
 
 async function assertCanGrantStore(deps: InviteDeps, actor: Principal, store: NonNullable<CreateInviteInput['store']>) {
-  if (!deps.storeAccess) throw new AuthError('NOT_SUPPORTED', 'Store invites become available once store permissions ship.');
+  if (!deps.storeAccess) throw new AuthError('NOT_SUPPORTED', 'Store invites need store access to be configured.');
   if (!isStoreRole(store.role) || !store.permissions.every(isStorePermission)) throw new AuthError('INVALID_INPUT');
   // There is exactly one owner per store; ownership moves through the transfer flow, never an invite.
   if (store.role === 'owner') throw new AuthError('FORBIDDEN', 'An invite cannot grant ownership; transfer ownership instead.');
@@ -221,12 +196,11 @@ export async function acceptInvite(deps: InviteDeps, input: AcceptInviteInput): 
 
     if (row.storeId && row.storeRole) {
       if (!isStoreRole(row.storeRole) || !row.permissions.every(isStorePermission)) throw new AuthError('INVALID_INPUT');
-      await deps.storeAccess!.grant(tx, {
-        storeId: row.storeId,
-        userId,
-        role: row.storeRole,
-        permissions: row.permissions as StorePermission[],
-      });
+      await deps.storeAccess!.grant(
+        tx,
+        { storeId: row.storeId, userId, role: row.storeRole, permissions: row.permissions as StorePermission[] },
+        row.invitedBy,
+      );
     }
 
     await writeAudit(tx, {
@@ -277,4 +251,73 @@ export async function countPendingInvites(db: Database, now: Date = new Date()):
     .from(invites)
     .where(and(isNull(invites.acceptedAt), isNull(invites.revokedAt), gt(invites.expiresAt, now)));
   return row?.n ?? 0;
+}
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: StoreRole | null;
+  permissions: StorePermission[];
+  expiresAt: Date;
+}
+
+/**
+ * Unused, unrevoked, unexpired invites into one store, soonest expiry first. Needs `store.members`
+ * there (admins have it in every store); anyone else gets FORBIDDEN rather than a partial list.
+ * Everyone who may list them may also revoke them ({@link revokeInvite}).
+ */
+export async function listStoreInvites(
+  deps: Pick<InviteDeps, 'db' | 'now'>,
+  actor: Principal,
+  storeId: string,
+): Promise<PendingInvite[]> {
+  const membership = await findMembership(deps.db, actor.userId, storeId);
+  if (!effectivePermissions(actor, membership).includes('store.members')) throw new AuthError('FORBIDDEN');
+  const rows = await deps.db
+    .select({
+      id: invites.id,
+      email: invites.email,
+      storeRole: invites.storeRole,
+      permissions: invites.permissions,
+      expiresAt: invites.expiresAt,
+    })
+    .from(invites)
+    .where(
+      and(eq(invites.storeId, storeId), isNull(invites.acceptedAt), isNull(invites.revokedAt), gt(invites.expiresAt, clock(deps))),
+    )
+    .orderBy(asc(invites.expiresAt), asc(invites.id));
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    role: isStoreRole(r.storeRole) ? r.storeRole : null,
+    permissions: r.permissions.filter(isStorePermission),
+    expiresAt: r.expiresAt,
+  }));
+}
+
+export type StoreInviteResult =
+  | { kind: 'added'; userId: string; email: string }
+  | { kind: 'invited'; invite: CreatedInvite };
+
+/**
+ * The "Invite member" action of the Stores & members screen. Someone who already has an account is
+ * added to the store at once ({@link addMember}); anyone else gets a single-use invite link
+ * ({@link createInvite}). Both paths apply the same grant rules and write the same audit trail.
+ */
+export async function inviteToStore(
+  deps: InviteDeps,
+  actor: Principal,
+  storeId: string,
+  input: { email: string; role: StoreRole; permissions?: StorePermission[] },
+): Promise<StoreInviteResult> {
+  const email = normalizeEmail(input.email);
+  if (!isStoreRole(input.role)) throw new AuthError('INVALID_INPUT');
+  const permissions = input.permissions ?? [...ROLE_PRESETS[input.role]];
+  const existing = await deps.db.$count(users, eq(users.email, email));
+  if (existing > 0) {
+    const { userId } = await addMember(deps.db, actor, storeId, { email, role: input.role, permissions });
+    return { kind: 'added', userId, email };
+  }
+  const invite = await createInvite(deps, actor, { email, store: { storeId, role: input.role, permissions } });
+  return { kind: 'invited', invite };
 }

@@ -3,11 +3,12 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { setSessionCookie } from 'better-auth/cookies';
 import { accounts, newId, sessions, users, verifications, type Database } from '@pod-studio/db';
+import { createStoreAccess, type StoreAccess } from '../access/members';
 import { writeAudit } from '../audit/log';
 import { changePassword } from './accounts';
 import { AUTH_ERROR_MESSAGES, isAuthError, type AuthErrorCode } from './errors';
 import { AUTH_BASE_PATH, PASSWORD_CHANGE_AUTH_PATHS } from './gate';
-import { acceptInvite, type StoreAccess } from './invites';
+import { acceptInvite } from './invites';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './secrets';
 
 export interface AuthConfig {
@@ -18,7 +19,7 @@ export interface AuthConfig {
   baseURL: string;
   /** Extra origins allowed to call the auth endpoints with cookies. */
   trustedOrigins?: string[];
-  /** Store membership writer for store-scoped invites (P1-04). Without it those invites are refused. */
+  /** Store membership reader/writer for store-scoped invites. Defaults to `store_members` in `db`. */
   storeAccess?: StoreAccess;
 }
 
@@ -67,6 +68,10 @@ const ERROR_STATUS: Record<AuthErrorCode, ErrorStatus> = {
   INVITE_EXPIRED: 'GONE',
   INVITE_USED: 'GONE',
   INVITE_REVOKED: 'GONE',
+  NOT_FOUND: 'NOT_FOUND',
+  ALREADY_MEMBER: 'CONFLICT',
+  LAST_OWNER: 'CONFLICT',
+  STORE_EXISTS: 'CONFLICT',
 };
 
 /** Runs a core operation and turns its `AuthError` into a JSON API error with the same code and message. */
@@ -90,7 +95,7 @@ function text(body: unknown, key: string): string {
 const UNGATED_PATHS = new Set(PASSWORD_CHANGE_AUTH_PATHS);
 
 function podStudioAccess(config: AuthConfig) {
-  const deps = { db: config.db, storeAccess: config.storeAccess };
+  const deps = { db: config.db, storeAccess: config.storeAccess ?? createStoreAccess(config.db) };
   return {
     id: 'pod-studio-access',
     hooks: {

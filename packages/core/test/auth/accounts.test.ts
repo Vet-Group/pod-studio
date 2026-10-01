@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { verifyPassword } from 'better-auth/crypto';
 import { accounts, auditLog, createDatabase, eq, migrateDatabase, sessions, users, type Database } from '@pod-studio/db';
 import { createTestDatabase } from '../../../../tests/support/db';
-import { AuthError, changePassword, createFirstAdmin, createUserWithTemporaryPassword, hashPassword, type Principal } from '../../src/auth';
+import { AuthError, changePassword, createFirstAdmin, createUserWithTemporaryPassword, hashPassword, type Principal } from '../../src';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => {

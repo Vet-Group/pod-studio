@@ -11,7 +11,7 @@ import {
   safeNextPath,
   type Auth,
   type Principal,
-} from '../../src/auth';
+} from '../../src';
 
 const BASE_URL = 'http://localhost:3100';
 const SECRET = 'test-only-secret-0123456789abcdefghijklmnop';

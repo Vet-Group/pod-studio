@@ -8,6 +8,10 @@ export const AUTH_ERROR_MESSAGES = {
   INVITE_EXPIRED: 'This invite link has expired.',
   INVITE_USED: 'This invite link has already been used.',
   INVITE_REVOKED: 'This invite link has been revoked.',
+  NOT_FOUND: 'That store or member does not exist.',
+  ALREADY_MEMBER: 'This person is already a member of the store.',
+  LAST_OWNER: 'A store must keep exactly one owner. Transfer ownership first.',
+  STORE_EXISTS: 'A store with this Shopify domain already exists.',
 } as const;
 
 export type AuthErrorCode = keyof typeof AUTH_ERROR_MESSAGES;

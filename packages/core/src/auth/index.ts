@@ -5,16 +5,16 @@ export {
   countPendingInvites,
   createInvite,
   findInvite,
+  inviteToStore,
+  listStoreInvites,
   revokeInvite,
   type AcceptInviteInput,
   type CreateInviteInput,
   type CreatedInvite,
   type InviteDeps,
   type InviteStatus,
-  type Principal,
-  type StoreAccess,
-  type StoreGrant,
-  type StoreMembership,
+  type PendingInvite,
+  type StoreInviteResult,
 } from './invites';
 export {
   changePassword,
@@ -34,15 +34,6 @@ export {
   normalizeEmail,
   normalizeName,
 } from './secrets';
-export {
-  ROLE_PRESETS,
-  STORE_PERMISSIONS,
-  STORE_ROLES,
-  isStorePermission,
-  isStoreRole,
-  type StorePermission,
-  type StoreRole,
-} from './roles';
 export {
   AUTH_BASE_PATH,
   INVITE_PATH,

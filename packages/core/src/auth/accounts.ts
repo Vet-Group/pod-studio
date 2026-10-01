@@ -2,7 +2,7 @@ import { verifyPassword } from 'better-auth/crypto';
 import { accounts, and, eq, ne, newId, sessions, sql, users, type Database, type GlobalRole } from '@pod-studio/db';
 import { writeAudit, type Transaction } from '../audit/log';
 import { AuthError } from './errors';
-import type { Principal } from './invites';
+import type { Principal } from '../access/can';
 import { assertPassword, generateTemporaryPassword, hashPassword, normalizeEmail, normalizeName } from './secrets';
 
 export interface CreateUserInput {

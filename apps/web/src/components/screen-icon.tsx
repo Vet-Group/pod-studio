@@ -18,7 +18,7 @@ const paths: Record<ScreenSlug, React.ReactNode> = {
   ),
   listing: <path d="M5 3h10l4 4v14H5zM9 11h6M9 15h6M9 7h3" />,
   products: <path d="m3 7 9-4 9 4-9 4zM3 7v11l9 4 9-4V7M12 11v11" />,
-  team: <path d="M3 10h18M4 10v11h16V10M2 10l3-7h14l3 7M9 21v-7h6v7" />,
+  stores: <path d="M3 10h18M4 10v11h16V10M2 10l3-7h14l3 7M9 21v-7h6v7" />,
   skills: <path d="m12 2 2 7 7 3-7 2-2 8-2-8-8-2 8-3z" />,
   niche: (
     <>

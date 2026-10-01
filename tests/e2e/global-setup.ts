@@ -56,7 +56,9 @@ export default async function globalSetup(config: FullConfig) {
 
   // `next dev` compiles each route on first request, and parallel first requests to one route can
   // read a half-written manifest ("Unexpected end of JSON input"). Compile every route once, in turn.
-  for (const path of ['/', '/studio', '/change-password', '/not-a-page', '/api/auth/get-session']) await api.get(path);
+  for (const path of ['/', '/studio', '/stores', '/stores/warm-up/members', '/change-password', '/not-a-page', '/api/auth/get-session']) {
+    await api.get(path);
+  }
   const anonymous = await request.newContext({ baseURL });
   for (const path of ['/login', '/invite/warm-up']) await anonymous.get(path);
   await anonymous.dispose();
