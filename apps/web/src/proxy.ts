@@ -9,6 +9,9 @@ import { getAuth } from '@/lib/auth';
  * code, so neither the auth API nor the app opens up if this proxy is skipped.
  */
 export async function proxy(request: NextRequest) {
+  // Worker endpoints enforce their independent versioned bearer-token boundary.
+  const pathname = request.nextUrl.pathname;
+  if (pathname === '/api/worker/v2' || pathname.startsWith('/api/worker/v2/')) return NextResponse.next();
   const hasSession = request.cookies.getAll().some((cookie) => cookie.name.endsWith('session_token'));
   const session = hasSession ? await getAuth().api.getSession({ headers: request.headers }) : null;
   const access = resolveRequestAccess(request.nextUrl.pathname, session?.user, request.nextUrl.search);

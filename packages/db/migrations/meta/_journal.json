@@ -71,6 +71,13 @@
       "when": 1790901714287,
       "tag": "0009_products_import",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790904239034,
+      "tag": "0010_worker_api_v2",
+      "breakpoints": true
     }
   ]
 }

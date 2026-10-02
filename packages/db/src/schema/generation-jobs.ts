@@ -33,6 +33,16 @@ export const generationJobs = pgTable('generation_jobs', {
   errorClass: text('error_class').$type<ErrorClass>(),
   failureReason: text('failure_reason'),
   workerMessage: text('worker_message'),
+  /** Contract payloads are immutable job inputs and are validated before dispatch. */
+  params: jsonb('params').$type<Record<string, unknown>>().notNull().default({}),
+  prompt: text('prompt'),
+  systemPrompt: text('system_prompt'),
+  skill: jsonb('skill').$type<Record<string, unknown>>(),
+  inputs: jsonb('inputs').$type<Record<string, unknown>[]>().notNull().default([]),
+  timeoutSeconds: integer('timeout_seconds'),
+  resultIds: text('result_ids').array(),
+  resultPayload: jsonb('result_payload').$type<Record<string, unknown>>(),
+  providerMeta: jsonb('provider_meta').$type<Record<string, unknown>>(),
   availableAt: timestamptz('available_at').notNull().defaultNow(),
   cancelRequested: boolean('cancel_requested').notNull().default(false),
   // Native bigint preserves exact sequence values beyond Number.MAX_SAFE_INTEGER.

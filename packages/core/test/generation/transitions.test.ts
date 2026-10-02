@@ -79,14 +79,20 @@ describe('generation transitions', () => {
       .rejects.toMatchObject({ code: 'validation_failed' });
     const result = await failJob(db, { ...lease, errorClass: 'input_invalid', message: '  <script>alert("prompt")</script>\u0085  ' }, now);
     expect(requesterFailureMessage(result)).toBe('<script>alert("prompt")</script>');
-    expect(await db.select().from(auditLog)).toHaveLength(0);
+    const audits = await db.select().from(auditLog);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]!.action).toBe('generation_job.fail');
+    expect(JSON.stringify(audits)).not.toContain(result.workerMessage);
   });
   it('accepts the 2000-character trimmed limit without auditing worker messages', async () => {
     const { db, lease } = await running();
     const result = await failJob(db, { ...lease, errorClass: 'provider_refused', message: `  ${'x'.repeat(2000)}  ` }, now);
     expect(result.workerMessage).toBe('x'.repeat(2000));
     expect(requesterFailureMessage(result)).toBe('x'.repeat(2000));
-    expect(await db.select().from(auditLog)).toHaveLength(0);
+    const audits = await db.select().from(auditLog);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]!.action).toBe('generation_job.fail');
+    expect(JSON.stringify(audits)).not.toContain(result.workerMessage);
   });
   it('wrong token and expired lease cannot complete, fail or heartbeat', async () => {
     const { db, lease } = await running();

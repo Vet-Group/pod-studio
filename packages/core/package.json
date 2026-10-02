@@ -12,6 +12,7 @@
     "create-admin": "node --env-file-if-exists=../../apps/web/.env.local --import tsx src/cli/create-admin.ts"
   },
   "dependencies": {
+    "@pod-studio/contracts": "workspace:*",
     "@aws-sdk/client-s3": "3.1142.0",
     "@aws-sdk/s3-request-presigner": "3.1142.0",
     "@pod-studio/db": "workspace:*",

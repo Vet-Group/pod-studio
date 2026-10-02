@@ -11,4 +11,7 @@ export * from './generation/transitions';
 export * from './generation/error-classes';
 export * from './catalog/resync';
 export * from './shopify/import';
+export * from './workers/tokens';
+export * from './workers/idempotency';
+export * from './workers/api';
 export { writeAudit, type AuditEntry, type Executor, type Transaction } from './audit/log';
