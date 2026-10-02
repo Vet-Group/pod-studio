@@ -10,6 +10,8 @@ export interface CreateJobInput {
   storeId: string;
   type: JobType;
   provider: string;
+  /** Provider model chosen by the requester; absent means the account default. */
+  model?: string;
   priority?: JobPriority;
   requiredProviderSkills?: ProviderSkill[];
   maxAttempts?: number;
@@ -19,6 +21,7 @@ export interface CreateJobInput {
 function permission(type: JobType) { return type === 'analyze' ? 'analysis.run' as const : 'content.generate' as const; }
 function validateInput(input: CreateJobInput) {
   if (!['analyze', 'generate', 'redesign', 'seo'].includes(input.type) || !/^[a-z][a-z0-9_]{1,31}$/.test(input.provider)
+    || (input.model !== undefined && !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(input.model))
     || !['interactive', 'normal', 'bulk'].includes(input.priority ?? 'normal')
     || !Number.isInteger(input.maxAttempts ?? 3) || (input.maxAttempts ?? 3) < 1 || (input.maxAttempts ?? 3) > 100
     || (input.requiredProviderSkills ?? []).some((s) => !s || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s.slug) || s.slug.length < 2 || s.slug.length > 64
@@ -44,7 +47,7 @@ export async function createJob(db: Database, principal: Principal, input: Creat
       if (!asset) throw new GenerationError('validation_failed');
     }
     const [job] = await tx.insert(generationJobs).values({
-      storeId: input.storeId, requesterId: principal.userId, type: input.type, provider: input.provider,
+      storeId: input.storeId, requesterId: principal.userId, type: input.type, provider: input.provider, model: input.model ?? null,
       priority: input.priority ?? 'normal', maxAttempts: input.maxAttempts ?? 3,
       requiredProviderSkills: input.requiredProviderSkills ?? [], designId: input.designId, assetId: input.assetId,
       createdAt: now, updatedAt: now, availableAt: now,

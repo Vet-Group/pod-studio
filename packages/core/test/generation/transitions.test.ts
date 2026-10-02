@@ -146,6 +146,17 @@ describe('generation transitions', () => {
     const { db } = await harness();
     await expect(createJob(db, owner, { storeId: A, type: 'generate', provider: 'INVALID' }, now)).rejects.toMatchObject({ code: 'validation_failed' });
     await expect(createJob(db, owner, { storeId: A, type: 'generate', provider: 'chatgpt', maxAttempts: 0 }, now)).rejects.toMatchObject({ code: 'validation_failed' });
+    await expect(createJob(db, owner, { storeId: A, type: 'generate', provider: 'gemini', model: 'Nano Banana Pro' }, now)).rejects.toMatchObject({ code: 'validation_failed' });
     expect(await db.select().from(generationJobs)).toHaveLength(0);
+  });
+
+  it('stores the requested model as an open id and leaves it null when absent', async () => {
+    const { db } = await harness();
+    const chosen = await createJob(db, owner, { storeId: A, type: 'redesign', provider: 'gemini', model: 'nano-banana-pro' }, now);
+    const fallback = await createJob(db, owner, { storeId: A, type: 'generate', provider: 'chatgpt' }, now);
+    const [chosenRow] = await db.select().from(generationJobs).where(eq(generationJobs.id, chosen.id));
+    const [fallbackRow] = await db.select().from(generationJobs).where(eq(generationJobs.id, fallback.id));
+    expect(chosenRow!.model).toBe('nano-banana-pro');
+    expect(fallbackRow!.model).toBeNull();
   });
 });

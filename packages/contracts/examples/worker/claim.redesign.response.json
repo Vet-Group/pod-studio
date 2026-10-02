@@ -1,0 +1,36 @@
+{
+  "job": {
+    "id": "job_R3dsGn7xQa",
+    "type": "redesign",
+    "provider": "gemini",
+    "model": "nano-banana-pro",
+    "attempt": 1,
+    "maxAttempts": 3,
+    "leaseToken": "lse_8a1d3c5e7f9b0d2c4e6a8b0d",
+    "leaseExpiresAt": "2026-10-02T06:18:00Z",
+    "prompt": "Redesign the attached artwork as a clean variation. Keep the subject and palette, remove the text.",
+    "inputs": [
+      {
+        "role": "design",
+        "assetId": "ast_Rds4Kq8Mn2",
+        "url": "https://storage.example.internal/designs/ast_Rds4Kq8Mn2.png?X-Amz-Signature=REDACTED",
+        "urlExpiresAt": "2026-10-02T06:30:00Z",
+        "sha256": "3f1c6a0d9b2e4f5a7c8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+        "contentType": "image/png",
+        "bytes": 5120344,
+        "width": 3000,
+        "height": 3000,
+        "filename": "vintage-floral-cat.png"
+      }
+    ],
+    "requiredProviderSkills": [],
+    "timeoutSeconds": 1800,
+    "params": {
+      "count": 4,
+      "ratio": "1:1",
+      "minLongEdge": 2048,
+      "intent": "variation",
+      "niche": "cat"
+    }
+  }
+}

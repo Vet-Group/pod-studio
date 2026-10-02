@@ -18,6 +18,8 @@ export const generationJobs = pgTable('generation_jobs', {
   requesterId: text('requester_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   type: text('type').$type<JobType>().notNull(),
   provider: text('provider').notNull(),
+  /** Requester-chosen provider model (open set). Null means the account default. */
+  model: text('model'),
   priority: text('priority').$type<JobPriority>().notNull().default('normal'),
   requiredProviderSkills: jsonb('required_provider_skills').$type<ProviderSkill[]>().notNull().default([]),
   designId: text('design_id').references(() => designs.id, { onDelete: 'set null' }),

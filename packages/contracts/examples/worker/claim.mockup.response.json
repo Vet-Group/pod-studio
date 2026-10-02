@@ -39,7 +39,8 @@
       "count": 10,
       "ratio": "3:4",
       "mode": "generate",
-      "niche": "botanical"
+      "niche": "botanical",
+      "minLongEdge": 2048
     }
   }
 }

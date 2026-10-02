@@ -108,6 +108,9 @@ export interface paths {
          *     Cancel wins over complete: once a cancel is recorded, complete returns `409 job_not_active`.
          *     Image jobs (`mockup`, `redesign`) send `images`. Text jobs (`listing_content`, `product_analysis`)
          *     send `payload` matching the schema for the job type.
+         *     When the job params set `minLongEdge`, every image must have `max(width, height) >= minLongEdge`,
+         *     otherwise the server returns `422 validation_failed` and the lease stays valid, so the worker can
+         *     upload a larger download and complete again with a new `Idempotency-Key`.
          */
         post: operations["completeJob"];
         delete?: never;
@@ -238,6 +241,13 @@ export interface components {
             id: components["schemas"]["Id"];
             type: components["schemas"]["JobType"];
             provider: components["schemas"]["Provider"];
+            /**
+             * @description Model chosen by the requester. Absent means the account default. When present, the worker must
+             *     select exactly this model in the provider UI; if the account does not offer it, fail with
+             *     `provider_refused` and a message the requester can act on. Never fall back to another model.
+             *     Report the model that actually ran in `providerMeta.model`.
+             */
+            model?: components["schemas"]["ModelId"];
             attempt: number;
             maxAttempts: number;
             leaseToken: string;
@@ -427,6 +437,8 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @description Provider model chosen by the requester, for example nano-banana-pro or imagen-4 for gemini through Google Flow. Open set so new models need no contract bump. The worker selects exactly this model in the provider UI or fails the job. */
+        ModelId: string;
         /** Format: date-time */
         Timestamp: string;
         /** @description Lowercase hex SHA-256 of the exact bytes. */
@@ -458,6 +470,13 @@ export interface components {
         };
         /** @enum {string} */
         Ratio: "1:1" | "3:4" | "4:3" | "2:3" | "3:2" | "4:5" | "9:16" | "16:9";
+        /**
+         * @description Minimum length in pixels of the longer side of every output image. 2048 is the 2K tier. The worker picks the smallest download or upscale option that meets it; the server rejects complete when an image is smaller. Absent means no size requirement.
+         * @example 1024
+         * @example 2048
+         * @example 4096
+         */
+        MinLongEdge: number;
         MockupParams: {
             /**
              * @example poster
@@ -468,6 +487,7 @@ export interface components {
             productType: string;
             count: number;
             ratio: components["schemas"]["Ratio"];
+            minLongEdge?: components["schemas"]["MinLongEdge"];
             /** @enum {string} */
             mode: "generate" | "edit";
             niche?: string;
@@ -476,6 +496,7 @@ export interface components {
         RedesignParams: {
             count: number;
             ratio: components["schemas"]["Ratio"];
+            minLongEdge?: components["schemas"]["MinLongEdge"];
             /** @enum {string} */
             intent: "variation" | "restyle" | "cleanup" | "upscale" | "background_remove";
             niche?: string;
@@ -599,7 +620,7 @@ export interface components {
         };
         /**
          * Skill manifest
-         * @description Metadata stored for one immutable skill version. The webapp stores, versions, reviews and distributes skills; the skills runtime (owned by the workers side) executes them. Draft 1 for review.
+         * @description Metadata stored for one immutable skill version. The webapp stores, versions, reviews and distributes skills; the skills runtime (owned by the workers side) executes them. Draft 2 for review.
          */
         "skill-manifest.schema": {
             /** @constant */
@@ -920,7 +941,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["LeaseLost"];
-            /** @description An upload is missing, a checksum does not match, or the Idempotency-Key was reused with a different body. */
+            /** @description An upload is missing, a checksum does not match, an image is smaller than the job `minLongEdge`, or the Idempotency-Key was reused with a different body. */
             422: {
                 headers: {
                     [name: string]: unknown;

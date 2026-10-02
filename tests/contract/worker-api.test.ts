@@ -75,6 +75,32 @@ describe('Worker API v2 HTTP contract', () => {
     expect(await h.db.select().from(workerResults)).toHaveLength(0);
   });
 
+  it('sends the requested model and minLongEdge, rejects undersized images without consuming the lease', async () => {
+    const h = await workerHarness();
+    const job = await lease(h, { type: 'redesign', model: 'nano-banana-pro', prompt: 'Redesign the artwork.', params: { count: 1, ratio: '1:1', minLongEdge: 2048, intent: 'variation' } });
+    expect(job.model).toBe('nano-banana-pro');
+    expect(job.params).toMatchObject({ ratio: '1:1', minLongEdge: 2048 });
+    const input = await upload(h, job);
+    const small = { ...input, images: [{ ...input.images[0]!, width: 1024, height: 2047 }] };
+    const rejected = await checked<{ code: string; errors: Array<{ path: string; message: string }> }>(await call(h.api, h.token, 'complete', small, job.id, { key: 'undersized-complete' }), 'Problem', 422);
+    expect(rejected.code).toBe('validation_failed');
+    expect(rejected.errors).toEqual([expect.objectContaining({ path: '/images/0' })]);
+    expect(await h.db.select().from(workerResults)).toHaveLength(0);
+    expect(await h.db.select().from(workerIdempotency).where(eq(workerIdempotency.jobId, job.id))).toHaveLength(0);
+    const [running] = await h.db.select().from(generationJobs).where(eq(generationJobs.id, job.id));
+    expect(running!.status).toBe('running');
+    const large = { ...input, images: [{ ...input.images[0]!, width: 2048, height: 2048 }], providerMeta: { model: 'nano-banana-pro' } };
+    const complete = await checked<components['schemas']['CompleteResponse']>(await call(h.api, h.token, 'complete', large, job.id, { key: 'sized-complete' }), 'CompleteResponse', 200);
+    expect(complete.resultIds).toHaveLength(1);
+  });
+
+  it('omits model when the requester did not choose one', async () => {
+    const h = await workerHarness();
+    const job = await lease(h);
+    expect(job).not.toHaveProperty('model');
+    expect(job.params).not.toHaveProperty('minLongEdge');
+  });
+
   it('requires contract version 2 and rejects unknown/revoked tokens with secret-free audits', async () => {
     const h = await workerHarness();
     for (const version of [null, '1', '2.0.0-draft.1']) await problem(await call(h.api, h.token, 'claim', {}, undefined, { version }), 426, 'contract_version_unsupported');
@@ -187,6 +213,6 @@ describe('Worker API v2 HTTP contract', () => {
       expect(validateContract(target[1], JSON.parse(readFileSync(join(root, file), 'utf8')) as unknown), file).toEqual([]);
       validated++;
     }
-    expect(validated).toBe(9);
+    expect(validated).toBe(10);
   });
 });

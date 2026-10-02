@@ -1,6 +1,6 @@
 # Worker API v2
 
-The HTTP prefix is `/api/worker/v2`. OpenAPI and examples in `packages/contracts` are the source of truth. Version `2.0.0-draft.1` remains a draft; this delivery does not grant the external worker-team approval.
+The HTTP prefix is `/api/worker/v2`. OpenAPI and examples in `packages/contracts` are the source of truth. Version `2.0.0-draft.2` remains a draft; this delivery does not grant the external worker-team approval.
 
 ## Authentication and credentials
 
@@ -22,6 +22,8 @@ Poll waits hold no database transaction or row lock. Client abort releases timer
 2. Call `POST /jobs/{jobId}/uploads` with the lease and each output's declared content type, bytes and lowercase SHA-256.
 3. PUT the exact bytes to each target URL using its returned headers before expiry.
 4. Call `complete` with the returned upload keys, checksums and image metadata, or with a text payload for a text job.
+
+The claimed job may carry `model` (the provider model the requester chose; absent means the account default) and image jobs may carry `params.minLongEdge` (pixels, 512-8192; 2048 is the 2K tier). The worker selects exactly that model or fails with `provider_refused`, and reports the model that ran in `providerMeta.model`. `complete` returns `422 validation_failed` with per-image `errors` when any declared image has `max(width, height) < minLongEdge`; nothing is recorded for that `Idempotency-Key` and the lease stays valid, so the worker can upload a larger download and complete again with a new key.
 
 Declarations are bound to worker, job and lease. Completion checks the actual object checksum, content type and byte count and copies verified bytes to a private immutable asset key. The guarded completion transaction persists real result records and assets. Cancel and complete cannot both win. Private losing candidates and staging objects are recorded in durable `worker_cleanup`; `runCleanup(storage, db, limit)` performs bounded deletion with backoff, retaining staging tasks until one second after PUT URLs expire to prevent a late PUT recreating an orphan. Hosts must invoke this core cleanup sweep periodically; a scheduler deployment is outside P1-07.
 
@@ -55,4 +57,4 @@ Migration `0010_worker_api_v2` extends worker credentials, durable replay/upload
 ## Contract deviations or questions
 
 - The initial task brief requested a 25-second default, but the authoritative draft specifies 0. Implementation follows the contract; pass 25 explicitly for long polling.
-- README section 8 contains ten unresolved worker-runtime/timing/provider/skill/text/redesign/archive/partial-output/size/job-envelope questions. Written confirmation by `ngatruong123` remains outstanding. The draft version is not bumped or marked approved.
+- README section 8 contains thirteen unresolved questions: the original ten worker-runtime/timing/provider/skill/text/redesign/archive/partial-output/size/job-envelope questions, plus three added in `2.0.0-draft.2` about model ids, per-account model availability and download tiers. Written confirmation by `ngatruong123` remains outstanding. `2.0.0-draft.2` adds optional `job.model` and `params.minLongEdge`; it is still a draft and is not marked approved.

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pod-studio.internal/contracts/v2/schemas/skill-manifest.schema.json",
   "title": "Skill manifest",
-  "description": "Metadata stored for one immutable skill version. The webapp stores, versions, reviews and distributes skills; the skills runtime (owned by the workers side) executes them. Draft 1 for review.",
+  "description": "Metadata stored for one immutable skill version. The webapp stores, versions, reviews and distributes skills; the skills runtime (owned by the workers side) executes them. Draft 2 for review.",
   "type": "object",
   "required": ["manifestVersion", "kind", "slug", "name", "version", "appliesTo"],
   "properties": {

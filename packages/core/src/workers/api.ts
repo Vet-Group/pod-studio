@@ -133,7 +133,7 @@ export async function claimWorkerJob(db: Database, storage: Storage, workerId: s
       inputRefs.push({ role: 'design', assetId: asset.id, url: signed.url, urlExpiresAt: signed.expiresAt, sha256: asset.sha256, contentType: asset.contentType, bytes: asset.sizeBytes, filename: asset.id });
     }
   }
-  const response = { job: { id: job.id, type: contractType(job.type), provider: job.provider, attempt: Math.max(1, job.attempt), maxAttempts: job.maxAttempts, leaseToken: job.leaseToken!, leaseExpiresAt: job.leaseExpiresAt!.toISOString(), prompt: job.prompt ?? '', ...(job.systemPrompt ? { systemPrompt: job.systemPrompt } : {}), inputs: inputRefs, ...(job.skill ? { skill: job.skill } : {}), requiredProviderSkills: (job.requiredProviderSkills ?? []).map((skill) => typeof skill === 'string' ? skill : skill.slug), ...(job.timeoutSeconds ? { timeoutSeconds: job.timeoutSeconds } : {}), params: job.params ?? {} } };
+  const response = { job: { id: job.id, type: contractType(job.type), provider: job.provider, ...(job.model ? { model: job.model } : {}), attempt: Math.max(1, job.attempt), maxAttempts: job.maxAttempts, leaseToken: job.leaseToken!, leaseExpiresAt: job.leaseExpiresAt!.toISOString(), prompt: job.prompt ?? '', ...(job.systemPrompt ? { systemPrompt: job.systemPrompt } : {}), inputs: inputRefs, ...(job.skill ? { skill: job.skill } : {}), requiredProviderSkills: (job.requiredProviderSkills ?? []).map((skill) => typeof skill === 'string' ? skill : skill.slug), ...(job.timeoutSeconds ? { timeoutSeconds: job.timeoutSeconds } : {}), params: job.params ?? {} } };
   assertContract('ClaimResponse', response);
   return response;
 }
@@ -164,7 +164,7 @@ function uploadDeclarations(body: unknown): { leaseToken: string; files: UploadD
   const value = body as { leaseToken: string; files: UploadDeclaration[] };
   return value;
 }
-function validateJobOutput(type: string, input: CompleteRequest): void {
+function validateJobOutput(type: string, params: Record<string, unknown> | null, input: CompleteRequest): void {
   const normalized = contractType(type);
   if (input.images && !['mockup', 'redesign'].includes(normalized)) throw new WorkerApiError('validation_failed', 400, 'This job requires a JSON payload.');
   if (input.payload && ['mockup', 'redesign'].includes(normalized)) throw new WorkerApiError('validation_failed', 400, 'This job requires uploaded images.');
@@ -172,6 +172,13 @@ function validateJobOutput(type: string, input: CompleteRequest): void {
     const schema = normalized === 'listing_content' ? 'ListingContentPayload' : 'ProductAnalysisPayload';
     const errors = validateContract(schema, input.payload);
     if (errors.length) throw new WorkerApiError('validation_failed', 400, 'The payload does not match the job output contract.', errors);
+  }
+  const minLongEdge = params?.minLongEdge;
+  if (input.images && typeof minLongEdge === 'number') {
+    const errors = input.images.flatMap((image, index) => Math.max(image.width, image.height) < minLongEdge
+      ? [{ path: `/images/${index}`, message: `The longer side is ${Math.max(image.width, image.height)} px; the job requires at least ${minLongEdge} px.` }]
+      : []);
+    if (errors.length) throw new WorkerApiError('validation_failed', 422, 'An output image is smaller than the job minLongEdge.', errors);
   }
 }
 export async function createWorkerUploads(db: Database, storage: Storage, workerId: string, jobId: string, body: unknown, now = new Date()) {
@@ -271,7 +278,7 @@ export async function completeWorkerJob(db: Database, storage: Storage, workerId
       prepared = true;
       const [snapshot] = await db.select().from(generationJobs).where(and(eq(generationJobs.id, jobId), eq(generationJobs.workerId, workerId), eq(generationJobs.leaseToken, input.leaseToken)));
       if (!snapshot || snapshot.status !== 'running' || snapshot.cancelRequested || !snapshot.leaseExpiresAt || snapshot.leaseExpiresAt <= now) return { candidates, error: { status: 409, response: problem('lease_lost', 409) } };
-      validateJobOutput(snapshot.type, input);
+      validateJobOutput(snapshot.type, snapshot.params, input);
       try {
         for (const image of input.images ?? []) {
           // Read/copy one image at a time; bounded memory, no database lock during I/O.

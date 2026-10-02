@@ -1,4 +1,4 @@
-# @pod-studio/contracts (worker API v2, draft 1)
+# @pod-studio/contracts (worker API v2, draft 2)
 
 Contract between the **POD Studio webapp** and the **AI workers / skills runtime**.
 Status: **draft for review**. Nothing is implemented yet. Field names, enums and timings are proposals.
@@ -68,6 +68,20 @@ Default timings (returned by `/register`, tunable server-side): `leaseSeconds=18
 `heartbeatIntervalSeconds=45`, `maxClaimWaitSeconds=25`. A job has a hard `timeoutSeconds` ceiling on top
 of the lease. The longest known flow (browser image generation with provider waits) is covered by
 heartbeats, not by a long lease.
+
+Model and output size (added in draft 2):
+
+- `job.model` is the provider model the requester chose (open id, for example `nano-banana-pro`). Absent means
+  the account default. The worker selects exactly that model in the provider UI; when the account does not
+  offer it, `POST /fail {errorClass:"provider_refused"}` with a message the requester can act on. Never fall
+  back to another model silently. Report the model that ran in `providerMeta.model`.
+- `params.minLongEdge` (mockup and redesign, 512-8192 px) is the minimum longer side of every output image;
+  2048 is the 2K tier. The worker picks the smallest download or upscale option that meets it. `complete`
+  returns `422 validation_failed` with per-image `errors` when an image is smaller; the lease stays valid, so
+  upload a larger file and complete again with a new `Idempotency-Key`.
+- `gemini` with channel `browser` means the Google Flow web app (https://flow.google.com/). No Gemini API is
+  used yet; `gemini` with channel `api` is reserved for later.
+- The aspect ratio is `params.ratio`, as before; draft 2 adds no second ratio field.
 
 ## 4. Scheduling (server side, for information)
 
@@ -144,3 +158,12 @@ accounts that report those skills installed (via `/register` or `/accounts/{id}/
 8. Is there a need for partial results (for example the first 5 of 10 images) before `complete`?
 9. Is 50 MB per output file and 20 files per job enough?
 10. Anything the worker needs that is missing from `JobBase`?
+11. `job.model` is an open id such as `nano-banana-pro` or `imagen-4` (Gemini through Google Flow) or
+    `gpt-image` (ChatGPT). Which ids does each provider UI offer today, and how should the worker map an id
+    to the label it clicks? Is `provider_refused` the right class when the account does not offer the model?
+12. Do accounts of the same provider differ in the models they offer (for example by plan tier)? If yes,
+    the next draft adds an optional `models` list to `AccountDeclaration` and the scheduler only offers a
+    job with `model` to accounts that declare it. Draft 2 assumes every account of a provider offers the model.
+13. `params.minLongEdge` defaults to 2048 in the webapp (the 2K tier used by the current sheet). Which
+    download or upscale tiers does each provider offer (Google Flow: 1K, 2K, 4K), and is checking the
+    declared `width`/`height` on `complete` enough, or should the server also decode the image header?
