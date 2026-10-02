@@ -6,4 +6,7 @@ export * from './assets/errors';
 export * from './assets/storage';
 export * from './designs/designs';
 export * from './catalog';
+export * from './generation/scheduler';
+export * from './generation/transitions';
+export * from './generation/error-classes';
 export { writeAudit, type AuditEntry, type Executor, type Transaction } from './audit/log';

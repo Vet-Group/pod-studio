@@ -1,0 +1,9 @@
+{
+  "name": "@pod-studio/jobs",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/reapers/lease-reaper.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": { "@pod-studio/core": "workspace:*", "@pod-studio/db": "workspace:*" },
+  "devDependencies": { "@types/node": "24.19.0", "typescript": "6.0.3", "vitest": "5.0.2" }
+}

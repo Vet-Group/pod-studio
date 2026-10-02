@@ -57,6 +57,13 @@
       "when": 1790895667497,
       "tag": "0007_shopify_connection",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790899524760,
+      "tag": "0008_generation_jobs",
+      "breakpoints": true
     }
   ]
 }
