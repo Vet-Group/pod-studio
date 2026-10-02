@@ -11,3 +11,4 @@ export * from './generation-jobs';
 export * from './generation-turns';
 export * from './provider-accounts';
 export * from './workers';
+export * from './products';

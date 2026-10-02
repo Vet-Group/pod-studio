@@ -65,6 +65,13 @@ Store-scoped permissions (`store_members`, `store_member_permissions`, presets) 
   revisions and unauthorized requests write neither catalog rows nor audit entries.
 - `0004_catalog.sql` is generated from Drizzle, with its composite-key unique index moved ahead of the
   foreign key (Drizzle otherwise emits them in the opposite order).
+- `import_runs` has a partial unique index on `(store_id, source)` for queued/running rows, so a store
+  cannot have overlapping imports of the same source. `store_products` uses a composite `(product_id,
+  store_id)` foreign key to prevent cross-store tracking rows. Products already use a composite store/type FK.
+  A generated nullable Shopify product-type reference on `import_runs` enforces its store/type pairing
+  while leaving CSV/Sheet refs generic. Variants have no independent store ID: their store is inherited
+  through the product FK (cascade); optional price-row references retain SET NULL on price-table replacement.
+  Migration 0009 moves the product/store unique index ahead of its referencing FK for fresh databases.
 
 ## Migrations
 
