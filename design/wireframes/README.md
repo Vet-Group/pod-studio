@@ -21,6 +21,8 @@ Open `index.html` directly in a browser (runs offline, with CSS/JS/SVG embedded 
 
 Three themes: 01 Creative (light), 02 Operations (information-dense), 03 Darkroom (dark, for design review).
 
+Screen 8 (New run) is a separate proposal in `screen-8/`, spec in `docs/screen-8-new-run.md`.
+
 ## Tests
 
 ```bash
