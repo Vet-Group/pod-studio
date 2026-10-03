@@ -48,7 +48,7 @@ P3-05 protects every screen; P3-08 checks all seven screens.
 
 - Unit: Vitest for policy, pricing, state machines, templates, and payloads; injectable clock/RNG to test expiry and fairness.
 - Integration: Real Postgres 16, with a separate schema or database for each test/worker; actual migrations and competing transactions. A guard rejects production URLs; no shared truncate; cleanup only removes namespaces created by the test. Separate MinIO for asset/upload tests.
-- Contract: OpenAPI 3.1 Worker API v2 at `packages/contracts/openapi/worker-api.yaml`, version `2.0.0-draft.1`, header `X-Contract-Version: 2`, prefix `/api/worker/v2`. Fake-worker verifies requests/responses, HTTP codes, leases, and presigned storage; the external runtime communicates only through the contract and object storage.
+- Contract: OpenAPI 3.1 Worker API v2 at `packages/contracts/openapi/worker-api.yaml`, version `2.0.0-draft.2`, header `X-Contract-Version: 2`, prefix `/api/worker/v2`. Fake-worker verifies requests/responses, HTTP codes, leases, and presigned storage; the external runtime communicates only through the contract and object storage.
 - E2E: Playwright runs the auth -> Studio -> Review -> Listing -> draft/publish flow, using fake-worker and a Shopify stub with deterministic side effects. Smoke tests against a real Shopify sandbox are a separate gate requiring supplied credentials; the default suite makes no live calls.
 - A11y: axe + manual keyboard checks with a checklist; passing axe alone is not enough.
 - Load: Real Postgres/MinIO, with the workload documented in P3-07; report p95, errors, fairness, queue drain, and machine configuration. Capacity is measured, not a promise of unlimited scale.

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: POD Studio Worker API
-  version: 2.0.0-draft.1
+  version: 2.0.0-draft.2
   summary: Contract between the POD Studio webapp and AI workers.
   description: |
     Draft for review by the workers/skills owner. Nothing here is implemented yet.
@@ -11,6 +11,8 @@ info:
     - The server decides which job runs next. A worker claims on behalf of one provider account.
     - Provider credentials (ChatGPT, Grok, Gemini, ...) stay on the worker machine. The webapp only
       knows account metadata and health.
+    - `gemini` with channel `browser` means the Google Flow web app (https://flow.google.com/), driven like
+      any other subscription UI. No Gemini API is used yet; `gemini` with channel `api` is reserved.
     - Every job-scoped call carries the `leaseToken` from claim. A stale token gets `409 lease_lost`
       and the worker must discard its work for that job.
     - Prompts arrive already rendered from a published skill version. Workers do not need a template engine.
@@ -179,6 +181,9 @@ paths:
         Cancel wins over complete: once a cancel is recorded, complete returns `409 job_not_active`.
         Image jobs (`mockup`, `redesign`) send `images`. Text jobs (`listing_content`, `product_analysis`)
         send `payload` matching the schema for the job type.
+        When the job params set `minLongEdge`, every image must have `max(width, height) >= minLongEdge`,
+        otherwise the server returns `422 validation_failed` and the lease stays valid, so the worker can
+        upload a larger download and complete again with a new `Idempotency-Key`.
       parameters:
         - $ref: '#/components/parameters/ContractVersion'
         - $ref: '#/components/parameters/JobId'
@@ -205,7 +210,7 @@ paths:
         '409':
           $ref: '#/components/responses/LeaseLost'
         '422':
-          description: An upload is missing, a checksum does not match, or the Idempotency-Key was reused with a different body.
+          description: An upload is missing, a checksum does not match, an image is smaller than the job `minLongEdge`, or the Idempotency-Key was reused with a different body.
           content:
             application/problem+json:
               schema:
@@ -501,6 +506,13 @@ components:
           $ref: '../schemas/common.schema.json#/$defs/JobType'
         provider:
           $ref: '../schemas/common.schema.json#/$defs/Provider'
+        model:
+          $ref: '../schemas/common.schema.json#/$defs/ModelId'
+          description: |
+            Model chosen by the requester. Absent means the account default. When present, the worker must
+            select exactly this model in the provider UI; if the account does not offer it, fail with
+            `provider_refused` and a message the requester can act on. Never fall back to another model.
+            Report the model that actually ran in `providerMeta.model`.
         attempt:
           type: integer
           minimum: 1

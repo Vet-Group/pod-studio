@@ -2,8 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pod-studio.internal/contracts/v2/schemas/job.schema.json",
   "title": "Job payloads",
-  "description": "Inputs a worker receives and outputs it returns, per job type. Draft 1 for review.",
+  "description": "Inputs a worker receives and outputs it returns, per job type. Draft 2 for review.",
   "$defs": {
+    "MinLongEdge": {
+      "description": "Minimum length in pixels of the longer side of every output image. 2048 is the 2K tier. The worker picks the smallest download or upscale option that meets it; the server rejects complete when an image is smaller. Absent means no size requirement.",
+      "type": "integer",
+      "minimum": 512,
+      "maximum": 8192,
+      "examples": [1024, 2048, 4096]
+    },
     "MockupParams": {
       "type": "object",
       "additionalProperties": false,
@@ -12,6 +19,7 @@
         "productType": { "type": "string", "minLength": 1, "maxLength": 64, "examples": ["poster", "canvas", "tshirt", "mug"] },
         "count": { "type": "integer", "minimum": 1, "maximum": 20 },
         "ratio": { "$ref": "common.schema.json#/$defs/Ratio" },
+        "minLongEdge": { "$ref": "#/$defs/MinLongEdge" },
         "mode": { "type": "string", "enum": ["generate", "edit"] },
         "niche": { "type": "string", "maxLength": 64 },
         "extraInstructions": { "type": "string", "maxLength": 4000 }
@@ -24,6 +32,7 @@
       "properties": {
         "count": { "type": "integer", "minimum": 1, "maximum": 8 },
         "ratio": { "$ref": "common.schema.json#/$defs/Ratio" },
+        "minLongEdge": { "$ref": "#/$defs/MinLongEdge" },
         "intent": { "type": "string", "enum": ["variation", "restyle", "cleanup", "upscale", "background_remove"] },
         "niche": { "type": "string", "maxLength": 64 },
         "extraInstructions": { "type": "string", "maxLength": 4000 }

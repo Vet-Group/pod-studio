@@ -2,7 +2,7 @@ import { index, integer, jsonb, pgTable, text, uniqueIndex } from 'drizzle-orm/p
 import { createdAt, id, timestamptz, updatedAt } from './columns';
 import { workers } from './workers';
 
-export type JobType = 'analyze' | 'generate' | 'redesign' | 'seo';
+export type JobType = 'analyze' | 'generate' | 'redesign' | 'seo' | 'mockup' | 'listing_content' | 'product_analysis';
 export type AccountState = 'available' | 'cooldown' | 'session_expired' | 'disabled' | 'busy' | 'offline';
 export interface ProviderSkill { slug: string; version?: string }
 

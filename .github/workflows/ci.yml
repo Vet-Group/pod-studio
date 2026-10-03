@@ -48,6 +48,13 @@ jobs:
       - name: Unit and integration tests
         run: pnpm test
 
+      - name: Worker contract examples and generated types
+        working-directory: packages/contracts
+        run: npm ci && npm run check
+
+      - name: Database migration consistency
+        run: pnpm db:check
+
       - name: Task catalog
         run: node tasks/validate-tasks.mjs
 

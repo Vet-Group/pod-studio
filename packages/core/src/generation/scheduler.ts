@@ -5,10 +5,11 @@ import type { Executor } from '../audit/log';
 export const LEASE_SECONDS = 180;
 export const HEARTBEAT_INTERVAL_SECONDS = 45;
 export const MAX_CLAIM_WAIT_SECONDS = 25;
-export interface ClaimRequest { accountId: string; workerId: string }
+export interface ClaimRequest { accountId: string; workerId: string; jobTypes?: string[] }
 
 /** Shared with the query-plan regression test to measure the production candidate query. */
-export function claimCandidateQuery(db: Executor, account: typeof providerAccounts.$inferSelect, now: Date) {
+export function claimCandidateQuery(db: Executor, account: typeof providerAccounts.$inferSelect, now: Date, requestedTypes?: string[]) {
+  const allowedTypes = requestedTypes?.length ? requestedTypes.filter((type) => account.jobTypes.includes(type as typeof account.jobTypes[number])) : account.jobTypes;
   return db.select({ job: generationJobs }).from(generationJobs)
     .leftJoin(generationStoreTurns, and(eq(generationStoreTurns.priority, generationJobs.priority), eq(generationStoreTurns.storeId, generationJobs.storeId)))
     .leftJoin(generationRequesterTurns, and(eq(generationRequesterTurns.priority, generationJobs.priority), eq(generationRequesterTurns.storeId, generationJobs.storeId), eq(generationRequesterTurns.requesterId, generationJobs.requesterId)))
@@ -16,7 +17,7 @@ export function claimCandidateQuery(db: Executor, account: typeof providerAccoun
       // Literal predicates let PostgreSQL use the partial index even with a cached generic plan.
       sql`${generationJobs.status} = 'queued' and ${generationJobs.leaseToken} is null and ${generationJobs.cancelRequested} = false`,
       eq(generationJobs.provider, account.provider), lte(generationJobs.availableAt, now),
-      sql`${generationJobs.type} in (select jsonb_array_elements_text(${JSON.stringify(account.jobTypes)}::jsonb))`,
+      sql`${generationJobs.type} in (select jsonb_array_elements_text(${JSON.stringify(allowedTypes)}::jsonb))`,
       sql`not exists (
         select 1 from jsonb_array_elements(${generationJobs.requiredProviderSkills}) required
         where not exists (
@@ -52,7 +53,7 @@ export async function claimJob(db: Database, request: ClaimRequest, now = new Da
     // Serialize just turn allocation, so concurrent accounts observe the previous store/requester
     // turn. Row locks still SKIP LOCKED jobs busy with completion, cancellation or the reaper.
     await tx.execute(sql`select pg_advisory_xact_lock(706, 1)`);
-    const [candidate] = await claimCandidateQuery(tx, account, now);
+    const [candidate] = await claimCandidateQuery(tx, account, now, request.jobTypes);
     if (!candidate) return null;
     const job = candidate.job;
     const [turn] = await tx.execute<{ next: string }>(sql`select nextval('generation_dispatch_order_seq')::text as next`);

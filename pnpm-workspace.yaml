@@ -1,9 +1,7 @@
 packages:
   - apps/*
   - packages/*
-  # packages/contracts keeps its own npm lockfile and `npm run check`; it joins the
-  # workspace once P1-07 wires generated types into apps/web.
-  - '!packages/contracts'
+  - packages/contracts
 # esbuild ships its binary as an optional platform package; its postinstall only re-checks it.
 allowBuilds:
   esbuild: false

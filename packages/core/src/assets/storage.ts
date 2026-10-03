@@ -26,7 +26,7 @@ export function createStorage(options: { client: S3Client; signingClient?: S3Cli
       const url = await getSignedUrl(signingClient, new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentType: contentType, ResponseContentDisposition: 'inline' }), { expiresIn: readExpiresIn });
       return { url, expiresAt: new Date(Date.now() + readExpiresIn * 1000).toISOString() };
     },
-    async readVerified(key: string, declared: { sha256: string; sizeBytes: number; contentType: string }) {
+    async readVerified(key: string, declared: { sha256: string; sizeBytes: number; contentType: string }, maxBytes = MAX_ASSET_BYTES) {
       const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key })).catch((error: unknown) => {
         if (error instanceof S3ServiceException && error.$metadata.httpStatusCode === 404) throw new AssetError('NOT_FOUND');
         throw error;
@@ -38,7 +38,7 @@ export function createStorage(options: { client: S3Client; signingClient?: S3Cli
       let size = 0;
       for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
         size += chunk.length;
-        if (size > MAX_ASSET_BYTES || size > declared.sizeBytes) {
+        if (size > maxBytes || size > declared.sizeBytes) {
           throw new AssetError('SIZE_MISMATCH');
         }
         chunks.push(Buffer.from(chunk));
