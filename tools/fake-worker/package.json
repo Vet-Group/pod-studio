@@ -1,0 +1,19 @@
+{
+  "name": "@pod-studio/fake-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "measure:rss": "tsx scripts/measure-rss.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": { "@pod-studio/contracts": "workspace:*" },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}

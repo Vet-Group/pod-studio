@@ -13,6 +13,7 @@ All artifacts are in the repo root (`.`):
 | `docs/adr/0001-stack.md` | Finalized stack, including a Preact Signals assessment |
 | `docs/adr/0002-access-model.md` | Accounts, invites, store-scoped permissions |
 | `docs/adr/0003-niche-skill-builder.md` | Niche master data, skill version builds, market-fit scoring, OpenBao |
+| `docs/plan-addendum-worker-integration.md` | Worker compatibility gates, contract-ready generation adapter, lifecycle sequencing, and optional AIStor spike |
 | `packages/contracts/` | Worker API v2 (OpenAPI 3.1) + JSON Schema skill manifest, with examples and a self-check script |
 | `design/wireframes/` | Prototype of 7 main screens (offline HTML) |
 | `tasks/` | Detailed P1-P3 tasks with file paths and tests, plus `tasks.json` |

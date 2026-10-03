@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
   - packages/contracts
+  - tools/*
 # esbuild ships its binary as an optional platform package; its postinstall only re-checks it.
 allowBuilds:
   esbuild: false
